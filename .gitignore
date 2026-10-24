@@ -27,3 +27,6 @@ coverage/
 *.sqlite-wal
 *.log
 .DS_Store
+.cache/
+*.tsbuildinfo
+src-tauri/gen/
