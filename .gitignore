@@ -1,0 +1,29 @@
+# Local assistant instructions and scratch data
+.claude/
+CLAUDE.md
+AGENTS.md
+GEMINI.md
+.agents/
+.codex/
+.cursor/
+.continue/
+.superpowers/
+
+# Build and dependency output
+node_modules/
+dist/
+target/
+coverage/
+
+# Local state and credentials
+.env
+.env.*
+!.env.example
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+*.log
+.DS_Store
