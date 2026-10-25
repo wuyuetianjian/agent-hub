@@ -18,8 +18,8 @@ fn npm_batch_shim_resolves_to_node_and_script_without_shell_interpolation() {
         resolve(shim.to_str().unwrap(), &["path with spaces & text".into()]).unwrap();
     assert_eq!(program, root.join("node.exe").to_string_lossy());
     assert_eq!(
-        args[0],
-        root.join("node_modules/vendor/cli.js").to_string_lossy()
+        std::path::Path::new(&args[0]),
+        root.join("node_modules/vendor/cli.js")
     );
     assert_eq!(args[1], "path with spaces & text");
 }
