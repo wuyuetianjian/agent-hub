@@ -9,6 +9,8 @@ export interface Provider {
   usageUrl: string;
   credentialPaths: string[];
   detectionPaths: string[];
+  executablePaths?: string[];
+  desktopPaths?: string[];
 }
 export interface Settings {
   locale: "zh" | "en";
@@ -27,6 +29,8 @@ export interface Settings {
   expandedWidth: number;
   expandedHeight: number;
   maxOutputBytes: number;
+  externalSessionLimit: number;
+  externalSessionRefreshSeconds: number;
   windowMode: "floating" | "island";
   summaryPolicy: "shortest" | "lowest";
   islandWidth: number;
@@ -70,10 +74,15 @@ export interface AgentView {
     installed: boolean;
     executable: string | null;
     configFound: boolean;
+    desktopFound?: boolean;
   };
   snapshot: Snapshot;
 }
 export interface SessionInfo {
+  readOnly: boolean;
+  title: string;
+  source: string;
+  updatedAt: number;
   id: string;
   profileId: string;
   providerId: string;

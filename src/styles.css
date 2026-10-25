@@ -1406,3 +1406,68 @@ input[type="radio"] {
   font-family: monospace;
   margin-left: auto;
 }
+.external-session {
+  padding: 25px 22px;
+  border: 1px solid var(--strong-line);
+  border-radius: 0 0 10px 10px;
+  background: var(--surface);
+  min-height: 280px;
+}
+.external-session-heading {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  color: var(--accent);
+}
+.external-session-heading h3 {
+  margin-top: 9px;
+  font-size: 16px;
+  color: var(--ink);
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.external-session > p {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.9;
+  margin: 19px 0;
+}
+.external-session .metadata dt {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+}
+.external-session .metadata dd {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.related-sessions {
+  margin: 18px 0;
+}
+.related-sessions button {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  text-align: left;
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--line);
+  border-radius: 5px;
+}
+.related-sessions button:hover {
+  background: var(--surface);
+}
+.related-sessions button > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  min-width: 0;
+}
+.related-sessions small {
+  color: var(--faint);
+  font-size: 9px;
+  white-space: nowrap;
+}

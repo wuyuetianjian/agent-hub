@@ -57,6 +57,12 @@ pub fn validate_settings(s: &crate::model::Settings) -> Result<()> {
     {
         bail!("Invalid language or theme");
     }
+    if !(15..=3600).contains(&s.external_session_refresh_seconds) {
+        bail!("Invalid existing-session refresh interval");
+    }
+    if !(1..=500).contains(&s.external_session_limit) {
+        bail!("External session limit must be between 1 and 500");
+    }
     if s.max_output_bytes < 4096 || s.max_output_bytes > 8 * 1024 * 1024 {
         bail!("Invalid terminal output limit");
     }

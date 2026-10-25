@@ -3,6 +3,25 @@ use std::path::{Path, MAIN_SEPARATOR_STR};
 /// Convert npm's generated Windows shim to a direct node invocation. No shell is used.
 pub fn resolve(program: &str, args: &[String]) -> Result<(String, Vec<String>)> {
     let path = Path::new(program);
+    #[cfg(unix)]
+    if let Ok(file) = std::fs::File::open(path) {
+        use std::io::{BufRead, Read};
+        let mut first = String::new();
+        let _ = std::io::BufReader::new(file)
+            .take(512)
+            .read_line(&mut first);
+        if first.trim() == "#!/usr/bin/env node" {
+            if let Some(root) = path.parent() {
+                let node = root.join("node");
+                if node.is_file() {
+                    let mut resolved = vec![program.into()];
+                    resolved.extend_from_slice(args);
+                    return Ok((node.to_string_lossy().into_owned(), resolved));
+                }
+            }
+        }
+    }
+
     if !path
         .extension()
         .and_then(|s| s.to_str())

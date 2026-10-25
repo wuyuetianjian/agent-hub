@@ -30,3 +30,18 @@ fn arbitrary_batch_file_is_not_executed_as_a_shell_command() {
     std::fs::write(&file, "echo unsupported").unwrap();
     assert!(resolve(file.to_str().unwrap(), &[]).is_err());
 }
+#[cfg(unix)]
+#[test]
+fn unix_node_launcher_uses_its_sibling_node() {
+    let dir = tempfile::tempdir().unwrap();
+    let cli = dir.path().join("codex");
+    let node = dir.path().join("node");
+    std::fs::write(&cli, "#!/usr/bin/env node\nconsole.log('test')").unwrap();
+    std::fs::write(&node, "").unwrap();
+    let (program, args) = resolve(cli.to_str().unwrap(), &["app-server".into()]).unwrap();
+    assert_eq!(program, node.to_string_lossy());
+    assert_eq!(
+        args,
+        vec![cli.to_string_lossy().into_owned(), "app-server".into()]
+    );
+}

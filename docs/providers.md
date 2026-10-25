@@ -15,7 +15,7 @@ These adapters are implemented and parser/process-tested. They have **not** all 
 
 **Antigravity, Cursor, Windsurf, Cline, Roo Code, OpenCode, Continue, Kiro, Amazon Q Developer and Aider** have local entries, offline icons, executable/configuration discovery, account profiles and generic CLI sessions. Their native account quota APIs are not implemented in this version. Use the official usage-page action, a local quota JSON file, or a collector program configured in the account editor. An installed agent without a working collector is shown as “Collector required”.
 
-The app currently detects CLI/configuration directories listed in `config/defaults.json`; it does not decrypt browser cookies or enumerate every IDE extension database. A desktop-only installation can be configured manually.
+Discovery searches the inherited PATH and configurable executable/desktop paths in `config/defaults.json`, including NVM, Volta, FNM, Homebrew and Codex/ChatGPT bundled CLI locations. Node shebang launchers use a sibling Node executable when available. Desktop-only discovery is distinguished from a usable CLI. The app does not decrypt browser cookies or enumerate every IDE extension database.
 
 ## Collector contract
 
@@ -55,3 +55,11 @@ The example is a schema illustration, not live quota data. Times are Unix second
 Eleven brand marks are bundled from the MIT-licensed Lobe Icons collection. Continue, Amazon Q and Aider use original lettermark placeholders. See [icon attribution](../public/icons/ATTRIBUTION.md). Users can change icon references through the external provider configuration; only packaged resources are currently available through the renderer asset policy.
 
 For a read-only local integration check, `cargo run --manifest-path src-tauri/Cargo.toml --no-default-features --example probe -- codex` prints only provider status, source and window count. It does not print account email, quota values or credentials and does not start inference. Replace `codex` with another catalog ID as needed.
+
+## Existing Codex sessions (v0.1.1)
+
+The session list imports existing Codex CLI/desktop thread metadata from the effective account’s read-only SQLite index, with bounded first-line JSONL metadata fallback when no usable index exists. Imported records show title, source, project and last update; they are marked read-only and are not reported as running merely because a history file exists. The widget’s Sessions entry and per-agent related-session list open these records.
+
+A successful empty index is authoritative, so archived threads are not reintroduced from JSONL logs. Explicit profile configuration directories take precedence over inherited `CODEX_HOME`, which takes precedence over the default account directory. No full conversation bodies are read. Live confirmation/input still requires the original client or a connected managed session.
+
+For discovery-only diagnostics with a minimal GUI-style PATH, run `cargo run --manifest-path src-tauri/Cargo.toml --no-default-features --example probe -- codex --discovery-only --gui-path`. It prints detected paths and session count without querying quota or printing session titles.

@@ -100,6 +100,12 @@ const zh = {
   showInWidget: "在悬浮窗显示",
   active: "运行中",
   exited: "已退出",
+  externalSession: "已有会话",
+  externalSessionHint:
+    "这是从其他客户端读取的会话记录，运行状态尚未确认。当前仅展示记录；确认操作仍需在原客户端或已连接的托管会话中完成。",
+  untitledSession: "未命名会话",
+  sessionIdentifier: "会话标识",
+  relatedSessions: "相关会话",
   invalidJson: "参数必须是 JSON 字符串数组",
 };
 type Key = keyof typeof zh;
@@ -207,6 +213,12 @@ const en: Record<Key, string> = {
   showInWidget: "Show in widget",
   active: "Running",
   exited: "Exited",
+  externalSession: "Existing session",
+  externalSessionHint:
+    "This record comes from another client; its current running state is unconfirmed. It is read-only here. Handle approvals in the original client or a connected managed session.",
+  untitledSession: "Untitled session",
+  sessionIdentifier: "Session ID",
+  relatedSessions: "Related sessions",
   invalidJson: "Arguments must be a JSON array of strings",
 };
 export function translator(locale: string) {

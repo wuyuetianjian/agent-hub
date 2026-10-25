@@ -1,6 +1,6 @@
 {
   "appName": "Agent Orbit",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "settings": {
     "locale": "zh",
     "theme": "dark",
@@ -29,7 +29,9 @@
     "windowMode": "floating",
     "summaryPolicy": "shortest",
     "islandWidth": 520,
-    "islandHeight": 88
+    "islandHeight": 88,
+    "externalSessionLimit": 50,
+    "externalSessionRefreshSeconds": 30
   },
   "providers": [
     {
@@ -42,7 +44,18 @@
       "adapter": "claude",
       "usageUrl": "https://claude.ai/settings/usage",
       "credentialPaths": [".claude/.credentials.json"],
-      "detectionPaths": [".claude"]
+      "detectionPaths": [".claude"],
+      "executablePaths": [
+        "~/.local/bin/claude",
+        "~/.nvm/versions/node/*/bin/claude",
+        "~/.volta/bin/claude",
+        "~/.fnm/node-versions/*/installation/bin/claude",
+        "~/Library/Application Support/fnm/node-versions/*/installation/bin/claude",
+        "/opt/homebrew/bin/claude",
+        "/usr/local/bin/claude",
+        "${APPDATA}/npm/claude.cmd",
+        "${LOCALAPPDATA}/Microsoft/WinGet/Links/claude.exe"
+      ]
     },
     {
       "id": "codex",
@@ -54,7 +67,35 @@
       "adapter": "codex",
       "usageUrl": "https://chatgpt.com/codex/settings/usage",
       "credentialPaths": [".codex/auth.json"],
-      "detectionPaths": [".codex"]
+      "detectionPaths": [".codex"],
+      "executablePaths": [
+        "~/.local/bin/codex",
+        "~/.nvm/versions/node/*/bin/codex",
+        "~/.volta/bin/codex",
+        "~/.fnm/node-versions/*/installation/bin/codex",
+        "~/Library/Application Support/fnm/node-versions/*/installation/bin/codex",
+        "/opt/homebrew/bin/codex",
+        "/usr/local/bin/codex",
+        "${APPDATA}/npm/codex.cmd",
+        "${LOCALAPPDATA}/Microsoft/WinGet/Links/codex.exe",
+        "/Applications/Codex.app/Contents/Resources/codex",
+        "/Applications/Codex.app/Contents/Resources/bin/codex",
+        "~/Applications/Codex.app/Contents/Resources/codex",
+        "/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex",
+        "/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex",
+        "~/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex",
+        "${LOCALAPPDATA}/Programs/Codex/resources/codex.exe"
+      ],
+      "desktopPaths": [
+        "/Applications/Codex.app",
+        "~/Applications/Codex.app",
+        "/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app",
+        "~/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app",
+        "${LOCALAPPDATA}/Programs/Codex/Codex.exe"
+      ],
+      "sessionIndexPaths": ["state_*.sqlite"],
+      "sessionLogPaths": ["sessions/*/*/*/*.jsonl"],
+      "configEnv": "CODEX_HOME"
     },
     {
       "id": "gemini",
@@ -66,7 +107,18 @@
       "adapter": "google",
       "usageUrl": "https://aistudio.google.com/usage",
       "credentialPaths": [".gemini/oauth_creds.json"],
-      "detectionPaths": [".gemini"]
+      "detectionPaths": [".gemini"],
+      "executablePaths": [
+        "~/.local/bin/gemini",
+        "~/.nvm/versions/node/*/bin/gemini",
+        "~/.volta/bin/gemini",
+        "~/.fnm/node-versions/*/installation/bin/gemini",
+        "~/Library/Application Support/fnm/node-versions/*/installation/bin/gemini",
+        "/opt/homebrew/bin/gemini",
+        "/usr/local/bin/gemini",
+        "${APPDATA}/npm/gemini.cmd",
+        "${LOCALAPPDATA}/Microsoft/WinGet/Links/gemini.exe"
+      ]
     },
     {
       "id": "antigravity",
@@ -78,7 +130,18 @@
       "adapter": "collector",
       "usageUrl": "https://antigravity.google/",
       "credentialPaths": [],
-      "detectionPaths": [".gemini/antigravity"]
+      "detectionPaths": [".gemini/antigravity"],
+      "executablePaths": [
+        "~/.local/bin/agy",
+        "~/.nvm/versions/node/*/bin/agy",
+        "~/.volta/bin/agy",
+        "~/.fnm/node-versions/*/installation/bin/agy",
+        "~/Library/Application Support/fnm/node-versions/*/installation/bin/agy",
+        "/opt/homebrew/bin/agy",
+        "/usr/local/bin/agy",
+        "${APPDATA}/npm/agy.cmd",
+        "${LOCALAPPDATA}/Microsoft/WinGet/Links/agy.exe"
+      ]
     },
     {
       "id": "cursor",
@@ -90,7 +153,18 @@
       "adapter": "collector",
       "usageUrl": "https://cursor.com/dashboard",
       "credentialPaths": [],
-      "detectionPaths": [".cursor"]
+      "detectionPaths": [".cursor"],
+      "executablePaths": [
+        "~/.local/bin/cursor-agent",
+        "~/.nvm/versions/node/*/bin/cursor-agent",
+        "~/.volta/bin/cursor-agent",
+        "~/.fnm/node-versions/*/installation/bin/cursor-agent",
+        "~/Library/Application Support/fnm/node-versions/*/installation/bin/cursor-agent",
+        "/opt/homebrew/bin/cursor-agent",
+        "/usr/local/bin/cursor-agent",
+        "${APPDATA}/npm/cursor-agent.cmd",
+        "${LOCALAPPDATA}/Microsoft/WinGet/Links/cursor-agent.exe"
+      ]
     },
     {
       "id": "copilot",
@@ -105,7 +179,18 @@
         ".config/github-copilot/apps.json",
         ".config/github-copilot/hosts.json"
       ],
-      "detectionPaths": [".config/github-copilot"]
+      "detectionPaths": [".config/github-copilot"],
+      "executablePaths": [
+        "~/.local/bin/copilot",
+        "~/.nvm/versions/node/*/bin/copilot",
+        "~/.volta/bin/copilot",
+        "~/.fnm/node-versions/*/installation/bin/copilot",
+        "~/Library/Application Support/fnm/node-versions/*/installation/bin/copilot",
+        "/opt/homebrew/bin/copilot",
+        "/usr/local/bin/copilot",
+        "${APPDATA}/npm/copilot.cmd",
+        "${LOCALAPPDATA}/Microsoft/WinGet/Links/copilot.exe"
+      ]
     },
     {
       "id": "windsurf",
@@ -117,7 +202,18 @@
       "adapter": "collector",
       "usageUrl": "https://windsurf.com/subscription",
       "credentialPaths": [],
-      "detectionPaths": [".codeium/windsurf"]
+      "detectionPaths": [".codeium/windsurf"],
+      "executablePaths": [
+        "~/.local/bin/windsurf",
+        "~/.nvm/versions/node/*/bin/windsurf",
+        "~/.volta/bin/windsurf",
+        "~/.fnm/node-versions/*/installation/bin/windsurf",
+        "~/Library/Application Support/fnm/node-versions/*/installation/bin/windsurf",
+        "/opt/homebrew/bin/windsurf",
+        "/usr/local/bin/windsurf",
+        "${APPDATA}/npm/windsurf.cmd",
+        "${LOCALAPPDATA}/Microsoft/WinGet/Links/windsurf.exe"
+      ]
     },
     {
       "id": "cline",
@@ -153,7 +249,18 @@
       "adapter": "collector",
       "usageUrl": "https://opencode.ai/",
       "credentialPaths": [],
-      "detectionPaths": [".config/opencode", ".local/share/opencode"]
+      "detectionPaths": [".config/opencode", ".local/share/opencode"],
+      "executablePaths": [
+        "~/.local/bin/opencode",
+        "~/.nvm/versions/node/*/bin/opencode",
+        "~/.volta/bin/opencode",
+        "~/.fnm/node-versions/*/installation/bin/opencode",
+        "~/Library/Application Support/fnm/node-versions/*/installation/bin/opencode",
+        "/opt/homebrew/bin/opencode",
+        "/usr/local/bin/opencode",
+        "${APPDATA}/npm/opencode.cmd",
+        "${LOCALAPPDATA}/Microsoft/WinGet/Links/opencode.exe"
+      ]
     },
     {
       "id": "continue",
@@ -165,7 +272,18 @@
       "adapter": "collector",
       "usageUrl": "https://hub.continue.dev/",
       "credentialPaths": [],
-      "detectionPaths": [".continue"]
+      "detectionPaths": [".continue"],
+      "executablePaths": [
+        "~/.local/bin/cn",
+        "~/.nvm/versions/node/*/bin/cn",
+        "~/.volta/bin/cn",
+        "~/.fnm/node-versions/*/installation/bin/cn",
+        "~/Library/Application Support/fnm/node-versions/*/installation/bin/cn",
+        "/opt/homebrew/bin/cn",
+        "/usr/local/bin/cn",
+        "${APPDATA}/npm/cn.cmd",
+        "${LOCALAPPDATA}/Microsoft/WinGet/Links/cn.exe"
+      ]
     },
     {
       "id": "kiro",
@@ -177,7 +295,18 @@
       "adapter": "collector",
       "usageUrl": "https://app.kiro.dev/",
       "credentialPaths": [],
-      "detectionPaths": [".kiro"]
+      "detectionPaths": [".kiro"],
+      "executablePaths": [
+        "~/.local/bin/kiro-cli",
+        "~/.nvm/versions/node/*/bin/kiro-cli",
+        "~/.volta/bin/kiro-cli",
+        "~/.fnm/node-versions/*/installation/bin/kiro-cli",
+        "~/Library/Application Support/fnm/node-versions/*/installation/bin/kiro-cli",
+        "/opt/homebrew/bin/kiro-cli",
+        "/usr/local/bin/kiro-cli",
+        "${APPDATA}/npm/kiro-cli.cmd",
+        "${LOCALAPPDATA}/Microsoft/WinGet/Links/kiro-cli.exe"
+      ]
     },
     {
       "id": "amazonq",
@@ -189,7 +318,18 @@
       "adapter": "collector",
       "usageUrl": "https://aws.amazon.com/q/developer/",
       "credentialPaths": [],
-      "detectionPaths": [".aws/amazonq"]
+      "detectionPaths": [".aws/amazonq"],
+      "executablePaths": [
+        "~/.local/bin/q",
+        "~/.nvm/versions/node/*/bin/q",
+        "~/.volta/bin/q",
+        "~/.fnm/node-versions/*/installation/bin/q",
+        "~/Library/Application Support/fnm/node-versions/*/installation/bin/q",
+        "/opt/homebrew/bin/q",
+        "/usr/local/bin/q",
+        "${APPDATA}/npm/q.cmd",
+        "${LOCALAPPDATA}/Microsoft/WinGet/Links/q.exe"
+      ]
     },
     {
       "id": "aider",
@@ -201,7 +341,18 @@
       "adapter": "collector",
       "usageUrl": "https://aider.chat/",
       "credentialPaths": [],
-      "detectionPaths": [".aider"]
+      "detectionPaths": [".aider"],
+      "executablePaths": [
+        "~/.local/bin/aider",
+        "~/.nvm/versions/node/*/bin/aider",
+        "~/.volta/bin/aider",
+        "~/.fnm/node-versions/*/installation/bin/aider",
+        "~/Library/Application Support/fnm/node-versions/*/installation/bin/aider",
+        "/opt/homebrew/bin/aider",
+        "/usr/local/bin/aider",
+        "${APPDATA}/npm/aider.cmd",
+        "${LOCALAPPDATA}/Microsoft/WinGet/Links/aider.exe"
+      ]
     }
   ],
   "endpoints": {

@@ -29,6 +29,7 @@ import type {
   Settings,
 } from "./types";
 import { translator } from "./i18n";
+import { ExternalSession } from "./components/ExternalSession";
 import { AgentIcon } from "./components/AgentIcon";
 import { QuotaCard } from "./components/QuotaCard";
 import { AgentDetail } from "./components/AgentDetail";
@@ -164,7 +165,9 @@ export default function App() {
     );
   const chosen = data.agents.find((a) => a.profile.id === selected);
   const currentSession =
-    data.sessions.find((s) => s.id === session) || data.sessions.at(-1);
+    data.sessions.find((s) => s.id === session) ||
+    data.sessions.find((s) => s.status === "running") ||
+    data.sessions[0];
   const configured = data.agents.find((a) => a.profile.id === configure?.id);
   const count = data.agents.filter((a) => a.discovery.installed).length;
   const filtered = data.agents.filter((a) =>
@@ -189,6 +192,11 @@ export default function App() {
       settings={data!.settings}
       t={t}
       busy={busy.includes(agent.profile.id)}
+      sessions={data.sessions.filter((s) => s.profileId === agent.profile.id)}
+      onSession={(id) => {
+        setSession(id);
+        openPage("sessions");
+      }}
       onBack={() => setSelected(null)}
       onRefresh={() => void refresh(agent.profile.id)}
       onConfigure={() => setConfigure({ id: agent.profile.id })}
@@ -451,6 +459,7 @@ export default function App() {
                           <div className="session-tabs">
                             {data.sessions.map((s) => (
                               <button
+                                title={s.title || s.cwd}
                                 className={
                                   currentSession?.id === s.id ? "active" : ""
                                 }
@@ -466,7 +475,12 @@ export default function App() {
                                   )?.provider.name
                                 }
                                 <small>
-                                  {s.cwd.split(/[\\/]/).filter(Boolean).at(-1)}
+                                  {s.readOnly
+                                    ? t("externalSession")
+                                    : s.cwd
+                                        .split(/[\\/]/)
+                                        .filter(Boolean)
+                                        .at(-1)}
                                 </small>
                               </button>
                             ))}
@@ -489,19 +503,27 @@ export default function App() {
                                   {t("stop")}
                                 </button>
                               </div>
-                              <Suspense
-                                fallback={
-                                  <div className="empty-state">
-                                    {t("loading")}
-                                  </div>
-                                }
-                              >
-                                <Terminal
+                              {currentSession.readOnly ? (
+                                <ExternalSession
                                   session={currentSession}
                                   t={t}
-                                  onError={setError}
+                                  locale={data.settings.locale}
                                 />
-                              </Suspense>
+                              ) : (
+                                <Suspense
+                                  fallback={
+                                    <div className="empty-state">
+                                      {t("loading")}
+                                    </div>
+                                  }
+                                >
+                                  <Terminal
+                                    session={currentSession}
+                                    t={t}
+                                    onError={setError}
+                                  />
+                                </Suspense>
+                              )}
                             </>
                           )}
                         </>
@@ -703,6 +725,11 @@ export default function App() {
                     <LayoutGrid size={14} />
                     {t("allAgents")}
                     <span>{data.agents.length}</span>
+                  </button>
+                  <button onClick={() => openPage("sessions")}>
+                    <TerminalSquare size={14} />
+                    {t("sessions")}
+                    <span>{data.sessions.length}</span>
                   </button>
                   <button onClick={() => setLaunch("")}>
                     <Plus size={14} />

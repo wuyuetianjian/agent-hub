@@ -1,6 +1,6 @@
 [package]
 name = "agent-orbit"
-version = "0.1.0"
+version = "0.1.1"
 description = "A local agent quota and CLI companion"
 edition = "2021"
 rust-version = "1.85"
@@ -27,6 +27,7 @@ reqwest = { version = "0.12", default-features = false, features = ["json", "rus
 chrono = { version = "0.4", features = ["serde"] }
 dirs = "6"
 which = "7"
+glob = "0.3"
 portable-pty = "0.9"
 axum = "0.8"
 base64 = "0.22"

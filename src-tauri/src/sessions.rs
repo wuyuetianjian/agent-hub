@@ -133,6 +133,10 @@ impl Sessions {
             })?;
         let id = uuid::Uuid::new_v4().to_string();
         let info = SessionInfo {
+            read_only: false,
+            title: p.label.clone(),
+            source: "managed".into(),
+            updated_at: chrono::Utc::now().timestamp(),
             id: id.clone(),
             profile_id: p.id.clone(),
             provider_id: provider.id.clone(),

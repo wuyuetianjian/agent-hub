@@ -10,7 +10,7 @@ Implementation checked locally on macOS with Node.js 24.20.0, Rust 1.92.0, Tauri
 - Frontend tests cover shortest-period/lowest-remaining summaries, unknown and zero quotas, elapsed reset wording and account/project context on approval cards.
 - TypeScript/Vite production build and native macOS debug build are run locally. The desktop bundle command is `npm run desktop:build -- --debug --bundles app`.
 
-Latest full run: 31 Rust tests and 5 frontend tests passed. TypeScript/Vite production build, Rust formatting and macOS app bundling passed.
+Latest full run: 42 Rust tests and 6 frontend tests passed. TypeScript/Vite production build, Rust formatting and macOS app bundling passed.
 
 ## Independent review
 
@@ -29,3 +29,9 @@ The browser/native UI automation inventory was unavailable (`Browser is not avai
 ## Other platforms
 
 The GitHub Actions workflow builds and tests native Windows, Linux and macOS targets. Those jobs have not been executed in this local session. Windows/Linux installer creation, actual runtime behavior, Wayland compositor behavior and Mac notch hardware placement remain to be verified on their corresponding systems. The locally generated app is a development bundle, not a signed/notarized public release.
+
+## v0.1.1 installation and existing-session fixes
+
+A minimal GUI-style PATH (`/usr/bin:/bin`) was used for read-only local discovery. It detected the NVM-installed Codex CLI, the sibling Node executable and the desktop-bundled CLI installation, and imported 50 existing Codex session records (the default limit). No inference or quota request was required. Tests cover native discovery fallbacks, Node shebang launch, existing CLI/desktop metadata, archived indexes, explicit/inherited account directories and literal bracketed paths. Existing metadata is marked read-only, not inferred to be an active process.
+
+The full suite now passes 42 Rust tests and 6 frontend tests locally. The Windows-specific runtime and prior native UI automation limitations remain unchanged.

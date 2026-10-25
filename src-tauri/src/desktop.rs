@@ -20,9 +20,14 @@ fn error(e: impl std::fmt::Display) -> String {
     e.to_string()
 }
 #[tauri::command]
-fn get_dashboard(runtime: State<'_, Arc<Runtime>>) -> CommandResult<Dashboard> {
-    runtime.dashboard().map_err(error)
+async fn get_dashboard(runtime: State<'_, Arc<Runtime>>) -> CommandResult<Dashboard> {
+    let runtime = runtime.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || runtime.dashboard())
+        .await
+        .map_err(error)?
+        .map_err(error)
 }
+
 #[tauri::command]
 async fn refresh_profile(
     runtime: State<'_, Arc<Runtime>>,

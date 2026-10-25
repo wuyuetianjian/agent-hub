@@ -7,11 +7,20 @@ pub async fn collect(
     _cfg: &Config,
     s: &Settings,
 ) -> Result<QuotaSnapshot> {
-    let Some(exe) = discover(p, provider).executable else {
+    let found = discover(p, provider);
+    let Some(exe) = found.executable else {
         return Ok(QuotaSnapshot::state(
             &p.id,
-            "notInstalled",
-            "Codex CLI was not found",
+            if found.installed {
+                "unavailable"
+            } else {
+                "notInstalled"
+            },
+            if found.installed {
+                "Codex installation or account data was detected, but its CLI executable could not be located; configure the executable path"
+            } else {
+                "Codex CLI was not found"
+            },
         ));
     };
     let env = if p.config_dir.is_empty() {

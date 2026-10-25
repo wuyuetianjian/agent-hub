@@ -32,3 +32,7 @@ Built-in credentials are bound to their original HTTPS service origin. External 
 Linux window positioning and always-on-top behavior depend on X11/Wayland and the compositor. If a tray cannot be created, Hide returns an error and keeps the window accessible. Window positions are restored within current monitor bounds; unavailable monitor positions are moved onto a current display.
 
 No remote control endpoint is exposed. Managed Claude hooks use an ephemeral IPv4 loopback listener and a separate random token per session. Requests with browser Origin headers, invalid tokens, exited sessions or changed quota bindings are rejected.
+
+Existing Codex session metadata is refreshed in a background worker and cached. `externalSessionLimit` defaults to 50 records per profile; `externalSessionRefreshSeconds` defaults to 30 seconds. Both can be overridden through the external settings file before database settings take precedence. Explicit account directories override inherited `CODEX_HOME`; default account directories are used only when neither is set. Large JSONL archives are scanned with a bounded entry budget.
+
+Provider catalog entries may define `executablePaths`, `desktopPaths`, `configEnv`, `sessionIndexPaths` and `sessionLogPaths`. Executable and desktop patterns support home-directory and environment-variable expansion. Session path patterns are relative to the effective account root, which is treated literally even if it contains brackets.

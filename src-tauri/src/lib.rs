@@ -7,6 +7,7 @@ pub mod config;
 #[cfg(feature = "desktop")]
 pub mod desktop;
 pub mod discovery;
+pub mod external_sessions;
 pub mod launch;
 pub mod protocol;
 pub mod providers;

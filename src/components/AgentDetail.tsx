@@ -6,7 +6,7 @@ import {
   Clock3,
   ArrowLeft,
 } from "lucide-react";
-import type { AgentView, Settings } from "../types";
+import type { AgentView, Settings, SessionInfo } from "../types";
 import type { T } from "../i18n";
 import { AgentIcon } from "./AgentIcon";
 import { resetLabel } from "../lib/format";
@@ -21,6 +21,8 @@ export function AgentDetail({
   onConfigure,
   onLaunch,
   onUsage,
+  sessions = [],
+  onSession,
 }: {
   agent: AgentView;
   settings: Settings;
@@ -31,6 +33,8 @@ export function AgentDetail({
   onConfigure: () => void;
   onLaunch: () => void;
   onUsage: () => void;
+  sessions?: SessionInfo[];
+  onSession?: (id: string) => void;
 }) {
   return (
     <section className="agent-detail">
@@ -119,6 +123,21 @@ export function AgentDetail({
           </dd>
         </div>
       </dl>
+      {sessions.length > 0 && (
+        <section className="related-sessions">
+          <div className="section-label">
+            {t("relatedSessions")} · {sessions.length}
+          </div>
+          {sessions.slice(0, 3).map((session) => (
+            <button key={session.id} onClick={() => onSession?.(session.id)}>
+              <span>{session.title || t("untitledSession")}</span>
+              <small>
+                {session.readOnly ? t("externalSession") : t("active")}
+              </small>
+            </button>
+          ))}
+        </section>
+      )}
       <div className="detail-actions">
         <button className="primary-button" onClick={onRefresh} disabled={busy}>
           <RefreshCw size={14} className={busy ? "spin" : ""} />

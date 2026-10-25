@@ -15,6 +15,7 @@ pub struct Runtime {
     pub events: broadcast::Sender<AppEvent>,
     pub bridge_url: RwLock<String>,
     refreshing: Mutex<HashSet<String>>,
+    external_cache: Mutex<Option<(std::time::Instant, Vec<SessionInfo>)>>,
     pub data_dir: std::path::PathBuf,
 }
 impl Runtime {
@@ -36,6 +37,7 @@ impl Runtime {
             events,
             bridge_url: RwLock::new(String::new()),
             refreshing: Mutex::new(HashSet::new()),
+            external_cache: Mutex::new(None),
             data_dir,
         }))
     }
@@ -99,10 +101,32 @@ impl Runtime {
                 snapshot,
             });
         }
+        let mut sessions = self.sessions.list();
+        let mut cache = self.external_cache.lock().unwrap();
+        if cache.as_ref().is_none_or(|(at, _)| {
+            at.elapsed().as_secs() >= settings.external_session_refresh_seconds
+        }) {
+            let rows = agents
+                .iter()
+                .flat_map(|agent| {
+                    crate::external_sessions::scan(
+                        &agent.profile,
+                        &agent.provider,
+                        settings.external_session_limit,
+                    )
+                })
+                .collect();
+            *cache = Some((std::time::Instant::now(), rows));
+        }
+        if let Some((_, rows)) = cache.as_ref() {
+            sessions.extend(rows.clone());
+        }
+        drop(cache);
+        sessions.sort_by_key(|s| std::cmp::Reverse(s.updated_at));
         Ok(Dashboard {
             agents,
             settings,
-            sessions: self.sessions.list(),
+            sessions,
             interactions: self.broker.list(),
             platform: std::env::consts::OS.into(),
         })
@@ -150,11 +174,13 @@ impl Runtime {
             "Enter an account label"
         );
         self.store.save_profile(&p)?;
+        *self.external_cache.lock().unwrap() = None;
         self.emit("dashboard");
         Ok(())
     }
     pub fn save_settings(&self, s: Settings) -> Result<()> {
         self.store.save_settings(&s)?;
+        *self.external_cache.lock().unwrap() = None;
         *self.settings.write().unwrap() = s;
         self.emit("dashboard");
         Ok(())

@@ -14,6 +14,16 @@ pub struct Provider {
     pub usage_url: String,
     pub credential_paths: Vec<String>,
     pub detection_paths: Vec<String>,
+    #[serde(default)]
+    pub executable_paths: Vec<String>,
+    #[serde(default)]
+    pub desktop_paths: Vec<String>,
+    #[serde(default)]
+    pub session_index_paths: Vec<String>,
+    #[serde(default)]
+    pub session_log_paths: Vec<String>,
+    #[serde(default)]
+    pub config_env: Option<String>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -38,6 +48,8 @@ pub struct Settings {
     pub expanded_width: f64,
     pub expanded_height: f64,
     pub max_output_bytes: usize,
+    pub external_session_limit: usize,
+    pub external_session_refresh_seconds: u64,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -105,6 +117,7 @@ impl QuotaSnapshot {
 #[serde(rename_all = "camelCase")]
 pub struct Discovery {
     pub installed: bool,
+    pub desktop_found: bool,
     pub executable: Option<String>,
     pub config_found: bool,
 }
@@ -119,6 +132,10 @@ pub struct AgentView {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SessionInfo {
+    pub read_only: bool,
+    pub title: String,
+    pub source: String,
+    pub updated_at: i64,
     pub id: String,
     pub profile_id: String,
     pub provider_id: String,
