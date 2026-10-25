@@ -11,7 +11,7 @@
 - Codex 支持结构化确认/问答卡片；Claude 托管终端支持权限和问答 Hook；其他 CLI 可在内置终端交互。
 - 中文/English、深浅色主题、托盘、置顶、开机启动、多个账号配置和本地持久化。
 
-当前为可构建的开发版。macOS 原生构建已在本机运行编译检查；Windows/Linux 的 CI 构建流程已配置，实际系统运行和全部真实账号联调尚未完成。详细状态见 [接入说明](docs/providers.md) 与 [验证记录](docs/validation.md)。
+当前为可构建的开发版。原生启动在当前环境的框架初始化阶段中止，尚未完成启动验收。macOS 原生构建已在本机运行编译检查；Windows/Linux 的 CI 构建流程已配置，实际系统运行和全部真实账号联调尚未完成。详细状态见 [接入说明](docs/providers.md) 与 [验证记录](docs/validation.md)。
 
 ### 开发运行
 
@@ -52,7 +52,7 @@ A desktop agent quota companion built with Tauri 2, React, Rust and SQLite. It i
 - Structured approval/question cards for Codex, managed Claude hooks, and direct terminal interaction for other CLIs.
 - Chinese/English, light/dark themes, tray restore, pinning, launch at login, multiple profiles and local persistence.
 
-This is a buildable development version. The native macOS build was compiled locally. Windows/Linux CI jobs are configured; actual OS runtime checks and all live-account integrations are not yet verified. See [provider status](docs/providers.md) and [validation](docs/validation.md).
+This is a buildable development version. Native startup aborted during framework initialization in this environment and has not passed runtime acceptance. The native macOS build was compiled locally. Windows/Linux CI jobs are configured; actual OS runtime checks and all live-account integrations are not yet verified. See [provider status](docs/providers.md) and [validation](docs/validation.md).
 
 ### Run and build
 

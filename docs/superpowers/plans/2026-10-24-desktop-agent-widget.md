@@ -69,7 +69,7 @@ Interfaces: dashboard/profile/settings/session IPC commands; dashboard, terminal
 - [x] Build compact graphite/ivory floating UI, quota rows, provider logos, approval inbox and expanded sessions/settings.
 - [x] Wire real state, agent visibility/order, manual/automatic refresh, CLI/profile configuration and Chinese/English themes.
 - [x] Add tray restore, collapse, pin, close/quit and window recovery.
-- [x] Verify keyboard controls, offline icons, preview layout and native launch; commit.
+- [ ] Verify keyboard controls, preview layout and native launch on a usable desktop session. Native startup aborts before setup in this environment; visual automation is unavailable. Offline assets and production builds have been checked.
 
 ### Task 5: Packaging, verification and docs
 

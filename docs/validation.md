@@ -22,7 +22,7 @@ A read-only Codex quota probe was attempted without starting inference. The inst
 
 Other built-in provider quota parsers are tested with synthetic data; full live-account verification is outstanding. This is especially relevant to internal OAuth services and Google account eligibility. No paid model calls, purchases, entitlement resets or new logins were performed for validation.
 
-A native startup smoke test with account polling disabled aborted with signal 6 before a window could be observed. LLDB could not launch the process (`lost connection`), and the environment could not list native processes (`sysmond service not found`). Native startup is therefore not verified; this remains an explicit release blocker until reproduced and resolved on a usable desktop session.
+A native startup smoke test with account polling disabled aborted with signal 6 before a window could be observed. LLDB could not launch the process (`lost connection`), and the environment could not list native processes (`sysmond service not found`). A minimal Tauri program without this app’s business code did not reach setup during the observation window and reported invalid connections to macOS Launch Services / `com.apple.hiservices-xpcservice`. Native startup is therefore not verified; this remains an explicit release blocker until reproduced and resolved on a usable desktop session.
 
 The browser/native UI automation inventory was unavailable (`Browser is not available: iab`; native pipe startup failed), so screenshot-based layout validation and interactive native behavior have not been observed. Source/build checks do not replace that check.
 

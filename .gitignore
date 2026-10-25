@@ -30,3 +30,4 @@ coverage/
 .cache/
 *.tsbuildinfo
 src-tauri/gen/
+artifacts/
