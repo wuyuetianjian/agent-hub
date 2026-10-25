@@ -236,6 +236,20 @@ export default function App() {
   ]);
   useEffect(() => {
     const fn = (e: KeyboardEvent) => {
+      const editing =
+        e.target instanceof Element &&
+        e.target.closest(
+          "input, textarea, [contenteditable=true], .terminal-host",
+        );
+      if (
+        workspaceWindow &&
+        (e.metaKey || (e.ctrlKey && !editing)) &&
+        e.key.toLowerCase() === "w"
+      ) {
+        e.preventDefault();
+        void call("hide_window").catch((error) => setError(String(error)));
+        return;
+      }
       if (e.key === "Escape") {
         setConfigure(null);
         setLaunch(null);
@@ -633,6 +647,20 @@ export default function App() {
                   >
                     <ChevronDown size={13} />
                   </button>
+                  {workspaceWindow && (
+                    <button
+                      className="icon-button window-close-button"
+                      title={t("closeToBackground")}
+                      aria-label={t("closeToBackground")}
+                      onClick={() =>
+                        void call("hide_window").catch((error) =>
+                          setError(String(error)),
+                        )
+                      }
+                    >
+                      <X size={15} />
+                    </button>
+                  )}
                 </div>
                 {menu && (
                   <div className="window-menu">

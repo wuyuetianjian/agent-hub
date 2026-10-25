@@ -2409,3 +2409,8 @@ input[type="radio"] {
     grid-template-columns: 1fr 1fr;
   }
 }
+
+.window-close-button:hover {
+  background: var(--warning);
+  color: var(--bg);
+}
