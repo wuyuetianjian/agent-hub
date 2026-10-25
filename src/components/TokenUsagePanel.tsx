@@ -10,13 +10,24 @@ import {
   formatTokens,
   type UsageRange,
 } from "../lib/usage";
-export function TokenUsagePanel({ data, t }: { data: Dashboard; t: T }) {
+export function TokenUsagePanel({
+  data,
+  t,
+  profileId,
+  compact = false,
+}: {
+  data: Pick<Dashboard, "settings" | "agents">;
+  t: T;
+  profileId?: string;
+  compact?: boolean;
+}) {
   const [range, setRange] = useState<UsageRange>(
-    data.settings.usageHistoryDays >= 7 ? "7d" : "today",
+    compact ? "today" : data.settings.usageHistoryDays >= 7 ? "7d" : "today",
   );
   const [from, setFrom] = useState(dateInput(new Date()));
   const [to, setTo] = useState(dateInput(new Date()));
   const contextKey = JSON.stringify([
+    profileId,
     range,
     from,
     to,
@@ -61,7 +72,10 @@ export function TokenUsagePanel({ data, t }: { data: Dashboard; t: T }) {
       setLoading(true);
       setError("");
       try {
-        const result = await call<UsageReport>("get_usage", { intervals });
+        const result = await call<UsageReport>("get_usage", {
+          intervals,
+          profileId,
+        });
         if (active && request.current === id) {
           setStoredReport({ key: contextKey, data: result });
           setSelected(null);
@@ -109,7 +123,10 @@ export function TokenUsagePanel({ data, t }: { data: Dashboard; t: T }) {
   const label = (start: number, end: number) =>
     `${new Date(start * 1000).toLocaleString(data.settings.locale, { timeZoneName: "short" })} – ${new Date(end * 1000).toLocaleString(data.settings.locale, { timeZoneName: "short" })}`;
   return (
-    <section className="token-usage-panel" aria-label={t("tokenUsage")}>
+    <section
+      className={`token-usage-panel ${compact ? "compact-token-usage" : ""}`}
+      aria-label={t("tokenUsage")}
+    >
       <header className="token-usage-heading">
         <div>
           <span className="eyebrow">TOKENS</span>
@@ -256,7 +273,7 @@ export function TokenUsagePanel({ data, t }: { data: Dashboard; t: T }) {
               <span>{t("usageInspect")}</span>
             )}
           </div>
-          {report.agents.length > 0 && (
+          {!compact && report.agents.length > 0 && (
             <div className="usage-agent-list">
               <div className="usage-agent-header">
                 <span>{t("allAgents")}</span>

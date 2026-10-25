@@ -16,6 +16,7 @@ export function AgentDock({
   detached = false,
   onPanelTarget,
   panelPresence,
+  sampledPointer,
   onDrag,
   onRefresh,
   onDetails,
@@ -35,11 +36,19 @@ export function AgentDock({
     profileId: string | null;
     anchor: number;
     pinned: boolean;
+    focus?: boolean;
   }) => void;
   panelPresence?: {
     inside: boolean;
+    profileId?: string;
     dismiss?: boolean;
     togglePin?: boolean;
+    sequence: number;
+  };
+  sampledPointer?: {
+    x: number | null;
+    y: number | null;
+    panelInside: boolean;
     sequence: number;
   };
   onDrag?: (
@@ -114,11 +123,35 @@ export function AgentDock({
   useEffect(() => {
     if (!panelPresence) return;
     popupInside.current = panelPresence.inside;
+    if (panelPresence.profileId) {
+      cancelClose();
+      setActive(panelPresence.profileId);
+      setPinned(false);
+      return;
+    }
     if (panelPresence.dismiss) dismiss();
     else if (panelPresence.togglePin) setPinned((v) => !v);
     else if (panelPresence.inside) cancelClose();
     else leave();
   }, [panelPresence?.sequence]);
+  useEffect(() => {
+    if (!sampledPointer || dragOrigin.current) return;
+    const { x, y, panelInside } = sampledPointer;
+    const wasInside = pointerInside.current || popupInside.current;
+    popupInside.current = panelInside;
+    const node =
+      x == null || y == null ? null : document.elementFromPoint(x, y);
+    const orb = node?.closest<HTMLElement>("[data-profile]");
+    if (orb && railRef.current?.contains(orb) && orb.dataset.profile) {
+      show(orb.dataset.profile);
+    } else if (panelInside) {
+      pointerInside.current = false;
+      setHoveredId(null);
+      cancelClose();
+    } else if (wasInside) {
+      leave();
+    }
+  }, [sampledPointer?.sequence]);
   useEffect(() => {
     onPanelChange(Boolean(current));
   }, [Boolean(current), onPanelChange]);
@@ -139,7 +172,13 @@ export function AgentDock({
     );
     if (session && agents.some((a) => a.profile.id === session.profileId))
       setActive(session.profileId);
-  }, [signature, active, dismissed.join("|")]);
+  }, [
+    signature,
+    active,
+    dismissed.join("|"),
+    data.sessions,
+    agents.map((a) => a.profile.id).join("|"),
+  ]);
   useEffect(() => {
     if (!panelRef.current) return;
     const observer = new ResizeObserver((entries) => {
@@ -176,14 +215,11 @@ export function AgentDock({
     pointerInside.current = true;
     cancelClose();
     setHoveredId(id);
-    if (explicit && active === id) {
-      setPinned((v) => !v);
-      return;
-    }
     if (!explicit && (pinned || requests.length)) return;
-    if (explicit) setPinned(true);
     setActive(id);
     updateAnchor(id);
+    if (explicit)
+      onPanelTarget?.({ profileId: id, anchor, pinned, focus: true });
   }
   function leave() {
     pointerInside.current = false;

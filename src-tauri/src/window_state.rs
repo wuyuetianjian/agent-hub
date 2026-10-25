@@ -122,3 +122,17 @@ pub fn panel_bounds(
         height,
     }
 }
+
+/// Convert physical desktop coordinates into a window's logical client coordinates.
+pub fn cursor_in_window(cursor: (f64, f64), window: Bounds, scale: f64) -> Option<(f64, f64)> {
+    if !scale.is_finite() || scale <= 0.0 {
+        return None;
+    }
+    let x = cursor.0 - window.x;
+    let y = cursor.1 - window.y;
+    if x >= 0.0 && y >= 0.0 && x < window.width && y < window.height {
+        Some((x / scale, y / scale))
+    } else {
+        None
+    }
+}

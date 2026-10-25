@@ -71,6 +71,7 @@ pub struct Settings {
     pub dock_panel_width: f64,
     pub dock_edge_inset: f64,
     pub dock_hover_delay_ms: u64,
+    pub dock_pointer_poll_ms: u64,
     pub dock_chrome_height: f64,
     pub dock_popup_height: f64,
     pub start_at_login: bool,

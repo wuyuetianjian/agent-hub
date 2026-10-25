@@ -372,6 +372,10 @@ impl Sessions {
                             Some("accept") => "Allow once".into(),
                             Some("decline") => "Deny".into(),
                             Some("cancel") => "Cancel".into(),
+                            Some("acceptForSession") => "Allow for session".into(),
+                            _ if v.get("acceptWithExecpolicyAmendment").is_some() => {
+                                "Allow command rule".into()
+                            }
                             _ => v.to_string(),
                         },
                     });

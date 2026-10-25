@@ -73,15 +73,48 @@ export default function App() {
   } | null>(null);
   const [panelPresence, setPanelPresence] = useState<{
     inside: boolean;
+    profileId?: string;
     dismiss?: boolean;
     togglePin?: boolean;
     sequence: number;
   }>({ inside: false, sequence: 0 });
+  const [sampledPointer, setSampledPointer] = useState<{
+    x: number | null;
+    y: number | null;
+    panelInside: boolean;
+    sequence: number;
+  }>();
+  useEffect(() => {
+    if (!isDesktop || workspaceWindow || panelWindow) return;
+    let disposed = false;
+    let off: (() => void) | undefined;
+    void listen<{ x: number | null; y: number | null; panelInside: boolean }>(
+      "orbit:dock-pointer",
+      (event) => {
+        setSampledPointer((previous) => ({
+          ...event.payload,
+          sequence: (previous?.sequence ?? 0) + 1,
+        }));
+      },
+    ).then((fn) => {
+      if (disposed) fn();
+      else off = fn;
+    });
+    return () => {
+      disposed = true;
+      off?.();
+    };
+  }, []);
   const panelRoot = useRef<HTMLDivElement>(null);
   const dragQueue = useRef(Promise.resolve());
   const panelRequestQueue = useRef(Promise.resolve());
   const setPanel = useCallback(
-    (target: { profileId: string | null; anchor: number; pinned: boolean }) => {
+    (target: {
+      profileId: string | null;
+      anchor: number;
+      pinned: boolean;
+      focus?: boolean;
+    }) => {
       if (!isDesktop || panelWindow || workspaceWindow) return;
       panelRequestQueue.current = panelRequestQueue.current
         .catch(() => {})
@@ -491,6 +524,7 @@ export default function App() {
           detached={isDesktop}
           onPanelTarget={setPanel}
           panelPresence={panelPresence}
+          sampledPointer={sampledPointer}
           onDrag={(phase, delta) => {
             const command =
               phase === "begin"

@@ -32,6 +32,17 @@ test("overview offers time ranges and does not invent token totals before collec
     assert.match(html, /Recorded total/);
     assert.match(html, /—/);
     assert.ok(!html.includes("<strong>0</strong>"));
+    const floating = renderToStaticMarkup(
+      <TokenUsagePanel
+        data={data}
+        profileId="codex-work"
+        compact
+        t={translator("en")}
+      />,
+    );
+    assert.ok(floating.includes("compact-token-usage"));
+    assert.match(floating, /class="active" aria-pressed="true">Today/);
+    assert.ok(!floating.includes("usage-agent-list"));
   } finally {
     if (previous === undefined) Reflect.deleteProperty(globalThis, "window");
     else

@@ -145,7 +145,13 @@ export function ApprovalCard({
                 ? t("allow")
                 : choice.label === "Deny"
                   ? t("decline")
-                  : choice.label}
+                  : choice.label === "Cancel"
+                    ? t("cancel")
+                    : choice.label === "Allow command rule"
+                      ? t("allowCommandRule")
+                      : choice.label === "Allow for session"
+                        ? t("allowSession")
+                        : choice.label}
             </button>
           ))
         )}

@@ -29,7 +29,7 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
           }
         : {
             command: "TEST ONLY — no command is executed",
-            availableDecisions: ["accept", "decline"],
+            availableDecisions: ["accept", "decline", { acceptWithExecpolicyAmendment: { execpolicy_amendment: ["test-only"] } }, "cancel"],
           };
     send({
       id: 42,

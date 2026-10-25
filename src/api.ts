@@ -2,10 +2,14 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import defaults from "../config/defaults.json";
 import type { AppEvent, Dashboard, Settings, Profile } from "./types";
-export const isDesktop = "__TAURI_INTERNALS__" in window;
+export const isDesktop =
+  typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 let preview: Dashboard = {
   settings: defaults.settings as Settings,
-  platform: navigator.userAgent.includes("Mac") ? "macos" : "linux",
+  platform:
+    typeof navigator !== "undefined" && navigator.userAgent.includes("Mac")
+      ? "macos"
+      : "linux",
   sessions: [],
   interactions: [],
   agents: defaults.providers.map((provider) => ({

@@ -2421,3 +2421,101 @@ input[type="radio"] {
   font-size: 10px;
   line-height: 1.5;
 }
+
+/* Long upstream labels must never obscure adjacent approval decisions. */
+.approval-actions button {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+/* Account usage stays legible inside the independent narrow hover window. */
+.compact-token-usage {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+.compact-token-usage .token-usage-heading {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+}
+.compact-token-usage .token-usage-heading h3 {
+  font-size: 16px;
+}
+.compact-token-usage .usage-range-controls {
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+.compact-token-usage .usage-range-tabs {
+  flex-wrap: wrap;
+}
+.compact-token-usage .token-metrics {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.compact-token-usage .token-metrics strong,
+.compact-token-usage .token-metrics > div:first-child strong {
+  font-size: 20px;
+}
+.compact-token-usage .usage-chart {
+  height: 90px;
+  gap: 2px;
+}
+.compact-token-usage .usage-chart-axis {
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.compact-token-usage .usage-chart-detail {
+  flex-direction: column;
+  align-items: flex-start;
+}
+.compact-token-usage .usage-date-range {
+  flex-wrap: wrap;
+}
+.compact-token-usage .usage-footnote {
+  overflow-wrap: anywhere;
+}
+
+/* Put the timeline before totals in the hover card so it is visible on opening. */
+.compact-token-usage {
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+}
+.compact-token-usage > * {
+  order: 8;
+}
+.compact-token-usage .token-usage-heading {
+  order: 0;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.compact-token-usage .token-usage-heading .eyebrow {
+  display: none;
+}
+.compact-token-usage .token-usage-heading h3 {
+  margin: 0;
+}
+.compact-token-usage .usage-date-range,
+.compact-token-usage .form-error {
+  order: 1;
+}
+.compact-token-usage .usage-trend-heading {
+  order: 2;
+  padding-top: 4px;
+}
+.compact-token-usage .usage-chart {
+  order: 3;
+  height: 70px;
+  margin-top: 8px;
+}
+.compact-token-usage .usage-chart-axis {
+  order: 4;
+}
+.compact-token-usage .usage-chart-detail {
+  order: 5;
+}
+.compact-token-usage .token-metrics {
+  order: 6;
+}

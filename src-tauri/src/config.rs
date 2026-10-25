@@ -93,6 +93,7 @@ pub fn validate_settings(s: &crate::model::Settings) -> Result<()> {
         || !(280.0..=520.0).contains(&s.dock_panel_width)
         || !(0.0..=100.0).contains(&s.dock_edge_inset)
         || !(80..=1000).contains(&s.dock_hover_delay_ms)
+        || !(30..=1000).contains(&s.dock_pointer_poll_ms)
         || !(32.0..=128.0).contains(&s.dock_chrome_height)
         || !(360.0..=1000.0).contains(&s.dock_popup_height)
     {

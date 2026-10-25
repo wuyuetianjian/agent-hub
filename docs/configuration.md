@@ -36,3 +36,7 @@ No remote control endpoint is exposed. Managed Claude hooks use an ephemeral IPv
 Existing Codex session metadata is refreshed in a background worker and cached. `externalSessionLimit` defaults to 50 records per profile; `externalSessionRefreshSeconds` defaults to 30 seconds. Both can be overridden through the external settings file before database settings take precedence. Explicit account directories override inherited `CODEX_HOME`; default account directories are used only when neither is set. Large JSONL archives are scanned with a bounded entry budget.
 
 Provider catalog entries may define `executablePaths`, `desktopPaths`, `configEnv`, `sessionIndexPaths` and `sessionLogPaths`. Executable and desktop patterns support home-directory and environment-variable expansion. Session path patterns are relative to the effective account root, which is treated literally even if it contains brackets.
+
+`dockPointerPollMs` (default 80, range 30–1000 milliseconds) controls native cursor sampling for inactive floating windows. Database settings override the mountable config. Standard webview hover remains a fallback when global cursor location is unavailable (for example, some Wayland compositors). `dockHoverDelayMs` remains the separate delay before closing after leaving both the circle and its detail panel.
+
+Floating account details include a profile-scoped token timeline. `get_usage` accepts an optional `profileId`; omitting it retains the main dashboard aggregate. Profile-specific reports never combine another account's events.

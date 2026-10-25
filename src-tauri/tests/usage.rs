@@ -412,3 +412,64 @@ fn resumed_codex_log_uses_last_call_instead_of_recounting_prior_cumulative_usage
     let next = parse_record("codex", &codex(1060, 950, 110), &mut state);
     assert_eq!(next[0].tokens.total, 60);
 }
+
+#[test]
+fn account_timeline_excludes_other_profiles_from_every_time_bucket() {
+    let t = tempfile::tempdir().unwrap();
+    let cfg = config::load().unwrap();
+    let store = Store::open(&t.path().join("usage.db"), &cfg).unwrap();
+    let now = chrono::Utc::now();
+    let mut accounts = vec![];
+    for (id, total) in [("work", 120), ("personal", 600)] {
+        let mut p = profile();
+        p.id = id.into();
+        let root = t.path().join(id);
+        let logs = root
+            .join("sessions")
+            .join(now.format("%Y/%m/%d").to_string());
+        std::fs::create_dir_all(&logs).unwrap();
+        p.config_dir = root.to_string_lossy().into_owned();
+        let mut event = codex(total, total - 20, 20);
+        event["timestamp"] = now.to_rfc3339().into();
+        std::fs::write(
+            logs.join("rollout.jsonl"),
+            format!(
+                "{}\n{}\n",
+                json!({"type":"session_meta","payload":{"id":id}}),
+                event
+            ),
+        )
+        .unwrap();
+        accounts.push(p);
+    }
+    let intervals = [Interval {
+        start: now.timestamp() - 3600,
+        end: now.timestamp() + 3600,
+    }];
+    let all = usage::collect(
+        &store,
+        &accounts,
+        &cfg.providers,
+        &cfg.settings,
+        t.path(),
+        &HashMap::new(),
+        &intervals,
+    )
+    .unwrap();
+    assert_eq!(all.total.total, 720);
+    let work = usage::collect(
+        &store,
+        &accounts[..1],
+        &cfg.providers,
+        &cfg.settings,
+        t.path(),
+        &HashMap::new(),
+        &intervals,
+    )
+    .unwrap();
+    assert_eq!(work.total.total, 120);
+    assert_eq!(work.buckets[0].tokens.total, 120);
+    assert_eq!(work.agents.len(), 1);
+    assert_eq!(work.agents[0].profile_id, "work");
+    assert_eq!(work.sources.len(), 1);
+}

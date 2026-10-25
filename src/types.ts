@@ -42,6 +42,7 @@ export interface Settings {
   dockPanelWidth: number;
   dockEdgeInset: number;
   dockHoverDelayMs: number;
+  dockPointerPollMs: number;
   dockChromeHeight: number;
   dockPopupHeight: number;
   startAtLogin: boolean;

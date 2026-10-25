@@ -116,3 +116,25 @@ fn independent_panel_fits_monitor_without_changing_dock_bounds() {
     assert_eq!(left.x, 58.0);
     assert!(left.height <= 900.0);
 }
+
+#[test]
+fn native_hover_converts_retina_and_negative_monitor_coordinates() {
+    use agent_orbit::window_state::cursor_in_window;
+    let window = Bounds {
+        x: -800.0,
+        y: 200.0,
+        width: 160.0,
+        height: 800.0,
+    };
+    assert_eq!(
+        cursor_in_window((-760.0, 300.0), window, 2.0),
+        Some((20.0, 50.0))
+    );
+    assert_eq!(
+        cursor_in_window((-800.0, 200.0), window, 2.0),
+        Some((0.0, 0.0))
+    );
+    assert_eq!(cursor_in_window((-640.0, 300.0), window, 2.0), None);
+    assert_eq!(cursor_in_window((-760.0, 1000.0), window, 2.0), None);
+    assert_eq!(cursor_in_window((-760.0, 300.0), window, 0.0), None);
+}

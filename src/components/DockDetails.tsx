@@ -16,6 +16,7 @@ import type {
 } from "../types";
 import type { T } from "../i18n";
 import { AgentIcon } from "./AgentIcon";
+import { TokenUsagePanel } from "./TokenUsagePanel";
 import { ApprovalCard, type ApprovalDraft } from "./ApprovalCard";
 import { statusText } from "./QuotaCard";
 import { approvalConnection } from "../lib/interaction";
@@ -244,6 +245,13 @@ export function DockDetails({
               />
             </button>
           </footer>
+          <TokenUsagePanel
+            key={current.profile.id}
+            data={{ settings: s, agents: [current] }}
+            profileId={current.profile.id}
+            compact
+            t={t}
+          />
           {onSession &&
             sessions.some(
               (session) => session.profileId === current.profile.id,

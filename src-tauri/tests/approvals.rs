@@ -106,6 +106,8 @@ async fn allow_and_deny_round_trip_to_the_correct_subprocess() {
     let ar = h.pending(&a).await;
     let br = h.pending(&b).await;
     assert_eq!(ar.profile_label, "TEST ONLY account-a");
+    assert_eq!(ar.choices[2].label, "Allow command rule");
+    assert_eq!(ar.choices[3].label, "Cancel");
     assert_eq!(br.profile_label, "TEST ONLY account-b");
     h.broker
         .respond(

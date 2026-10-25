@@ -11,6 +11,7 @@ struct NativeState {
     drag_origin: Mutex<Option<Bounds>>,
     panel: Mutex<Option<PanelTarget>>,
     view: Mutex<Option<(String, bool)>>,
+    announced_approvals: Mutex<std::collections::HashSet<String>>,
     placed_dock_side: Mutex<Option<String>>,
 }
 #[derive(Clone, serde::Serialize)]
@@ -44,11 +45,15 @@ async fn get_dashboard(runtime: State<'_, Arc<Runtime>>) -> CommandResult<Dashbo
 async fn get_usage(
     runtime: State<'_, Arc<Runtime>>,
     intervals: Vec<crate::usage::Interval>,
+    profile_id: Option<String>,
 ) -> CommandResult<crate::usage::UsageReport> {
     let runtime = runtime.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
         let _guard = runtime.usage_lock.lock().unwrap();
-        let profiles = runtime.store.profiles().map_err(error)?;
+        let profiles = match profile_id {
+            Some(id) => vec![runtime.profile(&id).map_err(error)?.0],
+            None => runtime.store.profiles().map_err(error)?,
+        };
         let settings = runtime.settings.read().unwrap().clone();
         crate::usage::collect(
             &runtime.store,
@@ -582,11 +587,28 @@ fn set_dock_panel(
     profile_id: Option<String>,
     anchor: f64,
     pinned: bool,
+    focus: Option<bool>,
     window: tauri::WebviewWindow,
 ) -> CommandResult<()> {
     if window.label() != "main" || !anchor.is_finite() {
         return Err("Invalid detail target".into());
     }
+    show_dock_panel(&app, &runtime, profile_id, anchor, pinned)?;
+    if focus.unwrap_or(false) {
+        if let Some(panel) = app.get_webview_window("dock-panel") {
+            panel.set_focus().map_err(error)?;
+        }
+    }
+    Ok(())
+}
+
+fn show_dock_panel(
+    app: &tauri::AppHandle,
+    runtime: &Runtime,
+    profile_id: Option<String>,
+    anchor: f64,
+    pinned: bool,
+) -> CommandResult<()> {
     let panel = app
         .get_webview_window("dock-panel")
         .ok_or("Detail window unavailable")?;
@@ -618,12 +640,103 @@ fn set_dock_panel(
             shown?;
             restored?;
         }
+        // An explicit click permits keyboard input in approval question fields.
+        // Automatic and hover opens remain non-activating.
+        if pinned {
+            panel.set_focus().map_err(error)?;
+        }
     } else {
         *app.state::<NativeState>().panel.lock().unwrap() = None;
         panel.hide().map_err(error)?;
     }
     Ok(())
 }
+fn pending_announcement<'a>(
+    pending: &'a [Interaction],
+    seen: &std::collections::HashSet<String>,
+) -> Option<&'a Interaction> {
+    pending
+        .iter()
+        .filter(|r| !seen.contains(&r.id))
+        .min_by_key(|r| (r.created_at, &r.id))
+}
+
+// Approval arrival is a native window operation, independent of workspace visibility
+// and of the rail webview's hover lifecycle.
+fn announce_approvals(app: &tauri::AppHandle) -> CommandResult<()> {
+    let runtime = app.state::<Arc<Runtime>>();
+    let pending: Vec<_> = runtime
+        .broker
+        .list()
+        .into_iter()
+        .filter(|r| r.expires_at > chrono::Utc::now().timestamp())
+        .collect();
+    let state = app.state::<NativeState>();
+    let next = {
+        let mut seen = state.announced_approvals.lock().unwrap();
+        seen.retain(|id| pending.iter().any(|r| &r.id == id));
+        pending_announcement(&pending, &seen).cloned()
+    };
+    let Some(request) = next else {
+        return Ok(());
+    };
+    if runtime.settings.read().unwrap().window_mode != "floating" {
+        return Ok(());
+    }
+    let sessions = runtime.sessions.list();
+    let Some(session) = sessions
+        .iter()
+        .find(|s| s.id == request.session_id && !s.read_only)
+    else {
+        return Ok(());
+    };
+    let settings = runtime.settings.read().unwrap().clone();
+    let profiles = runtime.store.profiles().map_err(error)?;
+    let mut visible: Vec<_> = profiles
+        .iter()
+        .filter(|p| {
+            (p.enabled && settings.visible_providers.contains(&p.provider_id))
+                || sessions
+                    .iter()
+                    .any(|s| s.profile_id == p.id && pending.iter().any(|r| r.session_id == s.id))
+        })
+        .collect();
+    visible.sort_by_key(|p| {
+        settings
+            .visible_providers
+            .iter()
+            .position(|id| id == &p.provider_id)
+            .unwrap_or(usize::MAX)
+    });
+    let Some(index) = visible.iter().position(|p| p.id == session.profile_id) else {
+        return Ok(());
+    };
+    let anchor = settings.dock_padding
+        + settings.dock_chrome_height * 0.25
+        + index as f64 * (settings.dock_hover_size + settings.dock_gap)
+        + settings.dock_hover_size / 2.0;
+    show_dock_panel(
+        app,
+        &runtime,
+        Some(session.profile_id.clone()),
+        anchor,
+        false,
+    )?;
+    state
+        .announced_approvals
+        .lock()
+        .unwrap()
+        .extend(pending.iter().map(|r| r.id.clone()));
+    if let Some(main) = app.get_webview_window("main") {
+        main.emit(
+            "orbit:panel-presence",
+            serde_json::json!({"inside":false,"profileId":session.profile_id}),
+        )
+        .map_err(error)?;
+    }
+    Ok(())
+}
+
 #[tauri::command]
 fn get_dock_panel(app: tauri::AppHandle) -> Option<PanelTarget> {
     app.state::<NativeState>().panel.lock().unwrap().clone()
@@ -740,6 +853,52 @@ fn quit_app(app: tauri::AppHandle, runtime: State<'_, Arc<Runtime>>) {
     app.exit(0);
 }
 
+fn window_cursor(window: &tauri::WebviewWindow, cursor: (f64, f64)) -> Option<(f64, f64)> {
+    if !window.is_visible().ok()? {
+        return None;
+    }
+    let position = window.inner_position().ok()?;
+    let size = window.inner_size().ok()?;
+    crate::window_state::cursor_in_window(
+        cursor,
+        Bounds {
+            x: position.x as f64,
+            y: position.y as f64,
+            width: size.width as f64,
+            height: size.height as f64,
+        },
+        window.scale_factor().ok()?,
+    )
+}
+
+fn sample_dock_pointer(app: &tauri::AppHandle) {
+    let state = app.state::<NativeState>();
+    if state.dragging.load(Ordering::Relaxed) {
+        return;
+    }
+    let Some(main) = app.get_webview_window("main") else {
+        return;
+    };
+    if !main.is_visible().unwrap_or(false) {
+        return;
+    }
+    let Ok(cursor) = app.cursor_position() else {
+        return;
+    };
+    let cursor = (cursor.x, cursor.y);
+    let local = window_cursor(&main, cursor);
+    let panel_inside = app
+        .get_webview_window("dock-panel")
+        .and_then(|panel| window_cursor(&panel, cursor))
+        .is_some();
+    let _ = main.emit(
+        "orbit:dock-pointer",
+        serde_json::json!({
+            "x":local.map(|p| p.0), "y":local.map(|p| p.1), "panelInside":panel_inside
+        }),
+    );
+}
+
 fn startup_trace(phase: &str) {
     use std::io::Write;
     if let Some(path) = std::env::var_os("AGENT_ORBIT_STARTUP_TRACE") {
@@ -835,11 +994,30 @@ pub fn run() {
                 loop {
                     match events.recv().await {
                         Ok(event) => {
+                            if event.kind == "dashboard" {
+                                if let Err(error) = announce_approvals(&events_handle) {
+                                    eprintln!("Approval popup unavailable: {error}");
+                                }
+                            }
                             let _ = events_handle.emit("orbit:event", event);
                         }
                         Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
                         Err(_) => break,
                     }
+                }
+            });
+            let pointer_handle = handle.clone();
+            tauri::async_runtime::spawn(async move {
+                loop {
+                    let (mode, interval) = {
+                        let runtime = pointer_handle.state::<Arc<Runtime>>();
+                        let settings = runtime.settings.read().unwrap();
+                        (settings.window_mode.clone(), settings.dock_pointer_poll_ms)
+                    };
+                    if mode == "floating" {
+                        sample_dock_pointer(&pointer_handle);
+                    }
+                    tokio::time::sleep(std::time::Duration::from_millis(interval)).await;
                 }
             });
             let background = rt.clone();
@@ -901,4 +1079,46 @@ pub fn run() {
             app.state::<Arc<Runtime>>().sessions.stop_all();
         }
     });
+}
+
+#[cfg(test)]
+mod approval_popup_tests {
+    use super::*;
+    fn request(id: &str, created_at: i64) -> Interaction {
+        Interaction {
+            profile_label: String::new(),
+            cwd: String::new(),
+            id: id.into(),
+            session_id: "managed".into(),
+            provider_id: "codex".into(),
+            title: String::new(),
+            detail: String::new(),
+            kind: "approval".into(),
+            choices: vec![],
+            questions: vec![],
+            created_at,
+            expires_at: i64::MAX,
+        }
+    }
+    #[test]
+    fn new_approval_opens_once_and_later_requests_reopen() {
+        let mut seen = std::collections::HashSet::new();
+        let first = vec![request("one", 1)];
+        assert_eq!(pending_announcement(&first, &seen).unwrap().id, "one");
+        seen.insert("one".into());
+        assert!(pending_announcement(&first, &seen).is_none());
+        let next = vec![request("two", 2), request("one", 1)];
+        assert_eq!(pending_announcement(&next, &seen).unwrap().id, "two");
+        assert!(pending_announcement(&[], &seen).is_none());
+    }
+    #[test]
+    fn concurrent_requests_open_oldest_unannounced_first() {
+        let pending = vec![request("later", 2), request("first", 1)];
+        assert_eq!(
+            pending_announcement(&pending, &Default::default())
+                .unwrap()
+                .id,
+            "first"
+        );
+    }
 }

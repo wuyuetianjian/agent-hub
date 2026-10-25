@@ -39,6 +39,7 @@
     "dockPanelWidth": 360,
     "dockEdgeInset": 0,
     "dockHoverDelayMs": 180,
+    "dockPointerPollMs": 80,
     "dockChromeHeight": 64,
     "dockPopupHeight": 580,
     "dockHoverSize": 44,
