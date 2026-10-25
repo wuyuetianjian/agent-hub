@@ -63,3 +63,38 @@ test("approval rule and cancellation labels are readable and localized", () => {
   assert.ok(html.includes("本会话允许"));
   assert.ok(!html.includes("acceptWithExecpolicyAmendment"));
 });
+
+test("approval body renders only reason and command while escaping markup", () => {
+  const html = renderToStaticMarkup(
+    <ApprovalCard
+      request={{
+        id: "r",
+        sessionId: "session",
+        providerId: "codex",
+        profileLabel: "Test",
+        cwd: "/test",
+        title: "Approval",
+        detail: JSON.stringify({
+          reason: "Review <script>alert(1)</script>",
+          command: "echo '<unsafe>'",
+          threadId: "hidden-protocol-id",
+          availableDecisions: ["accept"],
+        }),
+        kind: "permission",
+        choices: [{ id: "0", label: "Allow once" }],
+        questions: [],
+        createdAt: 1,
+        expiresAt: Date.now() / 1000 + 30,
+      }}
+      t={translator("en")}
+      expandedDetails
+      onRespond={async () => {}}
+    />,
+  );
+  assert.ok(html.includes("Review &lt;script&gt;"));
+  assert.ok(html.includes("&lt;unsafe&gt;"));
+  assert.ok(!html.includes("hidden-protocol-id"));
+  assert.ok(!html.includes("availableDecisions"));
+  assert.ok(!html.includes("<details"));
+  assert.ok(!html.includes("<script>"));
+});

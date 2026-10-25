@@ -83,7 +83,13 @@ async fn hook(
             .as_str()
             .unwrap_or("Claude approval")
             .into(),
-        detail: serde_json::to_string_pretty(&input["tool_input"]).unwrap_or_default(),
+        detail: serde_json::to_string(&json!({
+            "reason": input["reason"],
+            "command": input["tool_input"]["command"],
+            "file_path": input["tool_input"]["file_path"],
+            "path": input["tool_input"]["path"],
+        }))
+        .unwrap_or_default(),
         kind: kind.clone(),
         choices: vec![],
         questions: vec![],

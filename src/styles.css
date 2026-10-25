@@ -2519,3 +2519,22 @@ input[type="radio"] {
 .compact-token-usage .token-metrics {
   order: 6;
 }
+
+.approval-readable-content {
+  margin: 14px 0;
+}
+.approval-reason {
+  margin: 0 0 10px;
+  color: var(--ink);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.approval-command-list pre {
+  margin: 6px 0;
+  padding: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 200px;
+  overflow: auto;
+}

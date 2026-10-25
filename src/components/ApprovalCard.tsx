@@ -1,8 +1,9 @@
-import { ShieldCheck, ChevronDown, Send } from "lucide-react";
+import { ShieldCheck, Send } from "lucide-react";
 import { useState } from "react";
 import type { Interaction, Reply, Provider } from "../types";
 import type { T } from "../i18n";
 import { AgentIcon } from "./AgentIcon";
+import { approvalContent } from "../lib/approval-content";
 export type ApprovalDraft = {
   answers: Record<string, string[]>;
   freeText: Record<string, string>;
@@ -12,7 +13,6 @@ export function ApprovalCard({
   provider,
   t,
   onRespond,
-  expandedDetails = false,
   draft,
   onDraftChange,
 }: {
@@ -48,6 +48,7 @@ export function ApprovalCard({
     }
   }
   const expired = request.expiresAt <= Date.now() / 1000;
+  const content = approvalContent(request);
   return (
     <article className="approval-card">
       <header>
@@ -67,13 +68,23 @@ export function ApprovalCard({
         <span title={request.cwd}>{request.cwd}</span>
         <small>{request.sessionId.slice(0, 8)}</small>
       </div>
-      <details open={expandedDetails || undefined}>
-        <summary>
-          {t("details")}
-          <ChevronDown size={13} />
-        </summary>
-        <pre>{request.detail}</pre>
-      </details>
+      <div className="approval-readable-content">
+        <p className="approval-reason">
+          {content.reason || t("approvalReasonMissing")}
+        </p>
+        {content.actions.length > 0 && (
+          <div
+            className="approval-command-list"
+            aria-label={t("approvalAction")}
+          >
+            {content.actions.map((action, index) => (
+              <pre key={index}>
+                <code>{action}</code>
+              </pre>
+            ))}
+          </div>
+        )}
+      </div>
       {request.questions.map((q) => (
         <fieldset key={q.id}>
           <legend>{q.title}</legend>

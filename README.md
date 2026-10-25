@@ -6,6 +6,7 @@
 
 - 14 个 Agent 入口及离线图标；点击图标查看账号和全部额度周期。
 - 侧边设置：在设置中切换左侧/右侧；`dockSize`、`dockHoverSize`、`dockGap`、`dockPadding`、`dockPanelWidth`、`dockEdgeInset`、`dockHoverDelayMs`、`dockChromeHeight`、`dockPopupHeight` 可通过设置配置覆盖。
+- v0.1.11：审批卡仅展示审批原因与命令／操作，不再显示原始 JSON；浮窗及确认中心共用此显示。未提供原因时明确提示。
 - v0.1.10：后台悬浮栏使用原生鼠标检测补足悬停事件，移入圆圈直接显示完整详情，普通点击不再隐式固定；浮窗新增当前账号 Token 时间轴，支持今日按小时及 7 天、30 天、自定义范围。
 - v0.1.9：待审批请求由原生窗口层直接展开对应 AI 圆圈旁的确认面板，主窗口关闭到后台时仍可操作；处理完成后清除角标。
 - v0.1.8：Codex 默认使用可接收浮窗确认的结构化模式，托管线程显式启用审批策略；终端模式及外部只读历史会话不接管 Codex 确认。详情显示确认通道状态。`codexApprovalPolicy` 默认 `untrusted`（受管会话范围，不修改全局 CLI 配置），可配置为 `on-request`；安全读取等无需审批的操作不会弹窗。
@@ -58,6 +59,7 @@ A desktop agent quota companion built with Tauri 2, React, Rust and SQLite. It i
 
 - Fourteen agent entries with offline icons; click an icon for account details and all quota windows.
 - Dock configuration: choose left/right in Settings; override `dockSize`, `dockHoverSize`, `dockGap`, `dockPadding`, `dockPanelWidth`, `dockEdgeInset`, `dockHoverDelayMs`, `dockChromeHeight` and `dockPopupHeight` through settings configuration.
+- v0.1.11: Approval cards show only the reason and command/action instead of raw JSON, in both floating panels and the approval center. Missing reasons are identified explicitly.
 - v0.1.10: Native cursor sampling supports hover on inactive floating windows. Entering a circle opens full details, and ordinary clicks no longer pin implicitly. Floating details include the selected account’s token timeline with hourly Today and 7-day, 30-day, and custom ranges.
 - v0.1.9: New approval requests open the corresponding AI circle’s independent confirmation panel from the native window layer, including while the workspace is hidden. Resolving a request clears its badge.
 - v0.1.8 defaults Codex launches to structured mode and explicitly sets approval policy on managed threads. Terminal mode and imported read-only history do not route Codex approvals to the HUD. Details show actual channel connectivity. `codexApprovalPolicy` defaults to `untrusted` and can use `on-request`; this applies only to managed sessions and does not modify global CLI config. Operations that do not require approval will not prompt.

@@ -31,3 +31,6 @@ coverage/
 *.tsbuildinfo
 src-tauri/gen/
 artifacts/
+
+# Local documentation
+/docs/
