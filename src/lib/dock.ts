@@ -45,3 +45,20 @@ export function dockAgents(
       return (ai < 0 ? Infinity : ai) - (bi < 0 ? Infinity : bi);
     });
 }
+
+export function profileActivity(
+  profileId: string,
+  sessions: SessionInfo[],
+  requests: Interaction[],
+): "idle" | "running" | "waiting" {
+  if (requestsForProfile(profileId, sessions, requests).length)
+    return "waiting";
+  return sessions.some(
+    (session) =>
+      session.profileId === profileId &&
+      !session.readOnly &&
+      session.status === "running",
+  )
+    ? "running"
+    : "idle";
+}

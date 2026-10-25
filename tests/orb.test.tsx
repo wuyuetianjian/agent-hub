@@ -245,3 +245,28 @@ test("magnification changes only the target transform while preserving its norma
     html.includes(`--orb-scale:${settings.dockHoverSize / settings.dockSize}`),
   );
 });
+
+test("hover peek is concise while a pinned card retains session actions", () => {
+  const props = {
+    current: agent(38),
+    s: settings,
+    requests: [],
+    sessions: [],
+    t: translator("en"),
+    busy: [],
+    now: Date.now() / 1000,
+    onClose: () => {},
+    onDetails: () => {},
+    onRefresh: () => {},
+    onSessions: () => {},
+    onRespond: async () => {},
+  };
+  const peek = renderToStaticMarkup(
+    <DockDetails {...props} compact onPin={() => {}} />,
+  );
+  assert.match(peek, /hud-peek/);
+  assert.match(peek, /38%/);
+  assert.ok(!peek.includes("dock-sessions-link"));
+  const full = renderToStaticMarkup(<DockDetails {...props} pinned />);
+  assert.ok(full.includes("dock-sessions-link"));
+});

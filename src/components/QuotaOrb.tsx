@@ -8,6 +8,7 @@ export function QuotaOrb({
   settings,
   pending = 0,
   active,
+  activity = "idle",
   magnified = false,
   onHover,
   onLeave,
@@ -17,6 +18,7 @@ export function QuotaOrb({
   settings: Settings;
   pending?: number;
   active: boolean;
+  activity?: "idle" | "running" | "waiting";
   magnified?: boolean;
   onHover: () => void;
   onLeave: () => void;
@@ -30,7 +32,7 @@ export function QuotaOrb({
   const label = `${agent.provider.name} · ${agent.profile.label} · ${window?.label || "quota"} · ${known ? `${Math.round(percent!)}%` : "—"}`;
   return (
     <button
-      className={`dock-orb ${magnified ? "magnified" : ""} ${active ? "active" : ""} ${pending ? "has-request" : ""} ${agent.snapshot.status === "stale" ? "stale" : ""}`}
+      className={`dock-orb activity-${activity} ${magnified ? "magnified" : ""} ${active ? "active" : ""} ${pending ? "has-request" : ""} ${agent.snapshot.status === "stale" ? "stale" : ""}`}
       style={
         {
           "--orb-scale": magnified
@@ -78,6 +80,13 @@ export function QuotaOrb({
           className="orb-quota-alert"
           role="img"
           aria-label={translator(settings.locale)("otherQuotaExhausted")}
+        />
+      )}
+      {activity === "running" && pending === 0 && (
+        <span
+          className="orb-live-dot"
+          role="img"
+          aria-label={translator(settings.locale)("hudRunning")}
         />
       )}
       {pending > 0 && (

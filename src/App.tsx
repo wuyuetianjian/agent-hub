@@ -416,6 +416,11 @@ export default function App() {
             style={{ maxHeight: data.settings.dockPopupHeight }}
           >
             <DockDetails
+              compact={!panelTarget?.pinned}
+              onSession={(id) => {
+                presence(false, true);
+                openPage("sessions", undefined, id);
+              }}
               current={current}
               s={data.settings}
               requests={requestsForProfile(
@@ -432,15 +437,19 @@ export default function App() {
               pinned={panelTarget?.pinned}
               onPin={() => presence(true, false, true)}
               onClose={() => presence(false, true)}
-              onDetails={(id) => openPage("agents", id)}
+              onDetails={(id) => {
+                presence(false, true);
+                openPage("agents", id);
+              }}
               onRefresh={(id) => void refresh(id)}
-              onSessions={(id) =>
+              onSessions={(id) => {
+                presence(false, true);
                 openPage(
                   "sessions",
                   id,
                   data.sessions.find((session) => session.profileId === id)?.id,
-                )
-              }
+                );
+              }}
               onRespond={async (id, reply) => {
                 await call("respond", { requestId: id, reply });
                 await load();
@@ -482,6 +491,7 @@ export default function App() {
           onRefresh={(id) => void refresh(id)}
           onDetails={(id) => openPage("agents", id)}
           onSettings={() => openPage("settings")}
+          onSession={(id) => openPage("sessions", undefined, id)}
           onSessions={(id) => {
             openPage(
               "sessions",

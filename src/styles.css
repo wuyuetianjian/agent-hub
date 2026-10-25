@@ -1964,3 +1964,181 @@ input[type="radio"] {
     transition: none;
   }
 }
+
+/* Agent HUD-inspired quiet edge rail, hover peek and click-expanded card. */
+.dock-rail {
+  background: color-mix(in srgb, var(--bg) 94%, transparent);
+  border: 1px solid var(--line);
+}
+.side-right .dock-rail {
+  border-right: 0;
+  border-radius: 18px 0 0 18px;
+}
+.side-left .dock-rail {
+  border-left: 0;
+  border-radius: 0 18px 18px 0;
+}
+.dock-rail .dock-drag-handle {
+  opacity: 0.12;
+}
+.dock-rail:hover .dock-drag-handle {
+  opacity: 0.65;
+}
+.dock-rail .dock-controls {
+  opacity: 0.45;
+  transition: opacity 140ms ease;
+}
+.dock-rail:hover .dock-controls,
+.dock-rail:focus-within .dock-controls {
+  opacity: 1;
+}
+.orb-live-dot {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 6px;
+  height: 6px;
+  background: var(--accent);
+  border: 1px solid var(--bg);
+  border-radius: 50%;
+}
+.dock-orb.activity-running .orb-ring-value {
+  animation: hud-session-pulse 2400ms ease-in-out infinite;
+}
+@keyframes hud-session-pulse {
+  50% {
+    opacity: 0.58;
+  }
+}
+.hud-peek {
+  padding: 10px 12px;
+}
+.hud-peek > header {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+}
+.hud-peek > header > strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hud-session-state {
+  margin-left: auto;
+  font-size: 9px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.hud-session-state.running {
+  color: var(--accent);
+}
+.hud-session-state.waiting {
+  color: var(--warning);
+}
+.hud-peek-open {
+  display: block;
+  text-align: left;
+  width: 100%;
+  padding: 9px 0 3px;
+  background: none;
+}
+.hud-peek-open:hover {
+  color: var(--accent);
+}
+.hud-peek-quotas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+}
+.hud-peek-quotas > span {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+}
+.hud-peek-quotas strong {
+  color: var(--ink);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.hud-peek small,
+.hud-peek-open footer {
+  color: var(--muted);
+  font-size: 10px;
+}
+.hud-peek-open footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 7px;
+}
+.hud-peek-open footer > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hud-peek-reset {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 4px;
+}
+.hud-card-state {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px 9px;
+  color: var(--muted);
+  font-size: 10px;
+}
+.hud-state-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--faint);
+}
+.hud-card-state.running .hud-state-dot {
+  background: var(--accent);
+}
+.hud-card-state.waiting .hud-state-dot {
+  background: var(--warning);
+}
+.hud-session-list {
+  margin-top: 8px;
+  border-top: 1px solid var(--line);
+  max-height: 150px;
+  overflow: auto;
+}
+.hud-session-list > button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 0;
+  text-align: left;
+  background: none;
+  border-bottom: 1px solid var(--line);
+}
+.hud-session-list > button:hover {
+  color: var(--accent);
+}
+.hud-session-list > button > span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+}
+.hud-session-list small {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 9px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .dock-orb.activity-running .orb-ring-value {
+    animation: none;
+  }
+}

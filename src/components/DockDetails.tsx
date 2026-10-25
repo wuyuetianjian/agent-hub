@@ -18,6 +18,7 @@ import type { T } from "../i18n";
 import { AgentIcon } from "./AgentIcon";
 import { ApprovalCard, type ApprovalDraft } from "./ApprovalCard";
 import { statusText } from "./QuotaCard";
+import { profileActivity } from "../lib/dock";
 import { summaryWindow } from "../lib/summary";
 import { resetLabel } from "../lib/format";
 export function DockDetails({
@@ -31,6 +32,8 @@ export function DockDetails({
   busy,
   now,
   pinned,
+  compact = false,
+  onSession,
   onPin,
   onClose,
   onDetails,
@@ -48,6 +51,8 @@ export function DockDetails({
   busy: string[];
   now: number;
   pinned?: boolean;
+  compact?: boolean;
+  onSession?: (id: string) => void;
   onPin?: () => void;
   onClose: () => void;
   onDetails: (id: string) => void;
@@ -60,6 +65,65 @@ export function DockDetails({
     ...(primary ? [primary] : []),
     ...current.snapshot.windows.filter((window) => window !== primary),
   ];
+  const activity = profileActivity(current.profile.id, sessions, requests);
+  const activityLabel = t(
+    activity === "waiting"
+      ? "hudWaiting"
+      : activity === "running"
+        ? "hudRunning"
+        : "hudIdle",
+  );
+  if (compact && !requests.length)
+    return (
+      <section
+        className="hud-peek"
+        aria-label={`${current.provider.name} ${t("quota")}`}
+      >
+        <header>
+          <AgentIcon provider={current.provider} size={20} />
+          <strong>{current.provider.name}</strong>
+          <span className={`hud-session-state ${activity}`}>
+            {activityLabel}
+          </span>
+          <button className="icon-button" title={t("close")} onClick={onClose}>
+            <X size={12} />
+          </button>
+        </header>
+        <button
+          className="hud-peek-open"
+          onClick={onPin ?? (() => onDetails(current.profile.id))}
+          aria-label={t("hudExpand")}
+        >
+          <div className="hud-peek-quotas">
+            {windows.length ? (
+              windows.map((quota, index) => (
+                <span key={`${quota.label}-${index}`}>
+                  <small>{quota.label}</small>
+                  <strong>
+                    {quota.remainingPercent == null
+                      ? "—"
+                      : `${Math.round(quota.remainingPercent)}%`}
+                  </strong>
+                  <small>{t("remaining")}</small>
+                </span>
+              ))
+            ) : (
+              <span>{statusText(current.snapshot.status, t)}</span>
+            )}
+          </div>
+          <footer>
+            <span>{current.snapshot.account || current.profile.label}</span>
+            <ArrowUpRight size={12} />
+          </footer>
+        </button>
+        {primary && (
+          <small className="hud-peek-reset">
+            <Clock3 size={10} />
+            {resetLabel(primary.resetsAt, now, s.locale)}
+          </small>
+        )}
+      </section>
+    );
   return (
     <>
       <header className="dock-popover-header">
@@ -89,6 +153,10 @@ export function DockDetails({
           <X size={14} />
         </button>
       </header>
+      <div className={`hud-card-state ${activity}`}>
+        <span className="hud-state-dot" />
+        {activityLabel}
+      </div>
       {requests.length ? (
         <div className="dock-approval-list">
           {requests.map((request) => (
@@ -164,6 +232,46 @@ export function DockDetails({
               />
             </button>
           </footer>
+          {onSession &&
+            sessions.some(
+              (session) => session.profileId === current.profile.id,
+            ) && (
+              <div className="hud-session-list">
+                {sessions
+                  .filter((session) => session.profileId === current.profile.id)
+                  .sort(
+                    (a, b) =>
+                      Number(
+                        requests.some((request) => request.sessionId === b.id),
+                      ) -
+                        Number(
+                          requests.some(
+                            (request) => request.sessionId === a.id,
+                          ),
+                        ) || b.updatedAt - a.updatedAt,
+                  )
+                  .map((session) => (
+                    <button
+                      key={session.id}
+                      onClick={() => onSession(session.id)}
+                      title={session.cwd}
+                    >
+                      <TerminalSquare size={12} />
+                      <span>
+                        {session.title || session.cwd || t("untitledSession")}
+                        <small>
+                          {session.readOnly
+                            ? t("externalSession")
+                            : session.status === "running"
+                              ? t("hudRunning")
+                              : t("hudIdle")}
+                        </small>
+                      </span>
+                      <ArrowUpRight size={12} />
+                    </button>
+                  ))}
+              </div>
+            )}
           <button
             className="dock-sessions-link"
             onClick={() => onSessions(current.profile.id)}

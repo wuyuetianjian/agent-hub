@@ -1,6 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { ringOffset, requestsForProfile, dockAgents } from "../src/lib/dock.ts";
+import {
+  ringOffset,
+  requestsForProfile,
+  dockAgents,
+  profileActivity,
+} from "../src/lib/dock.ts";
 import type { AgentView, Interaction, SessionInfo } from "../src/types.ts";
 test("ring preserves full, exhausted and unknown quota", () => {
   assert.equal(ringOffset(100, 28), 0);
@@ -32,5 +37,53 @@ test("unpinning an agent cannot hide its pending confirmation", () => {
   assert.deepEqual(
     dockAgents(agents, ["claude"], sessions, requests).map((a) => a.profile.id),
     ["other", "work-profile"],
+  );
+});
+
+test("imported session history does not imply live agent activity", () => {
+  assert.equal(
+    profileActivity(
+      "work",
+      [
+        {
+          id: "s",
+          profileId: "work",
+          readOnly: true,
+          status: "running",
+        } as SessionInfo,
+      ],
+      [],
+    ),
+    "idle",
+  );
+  assert.equal(
+    profileActivity(
+      "work",
+      [
+        {
+          id: "s",
+          profileId: "work",
+          readOnly: false,
+          status: "running",
+        } as SessionInfo,
+      ],
+      [],
+    ),
+    "running",
+  );
+  assert.equal(
+    profileActivity(
+      "work",
+      [
+        {
+          id: "s",
+          profileId: "work",
+          readOnly: false,
+          status: "running",
+        } as SessionInfo,
+      ],
+      [{ sessionId: "s" } as Interaction],
+    ),
+    "waiting",
   );
 });

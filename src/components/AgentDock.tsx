@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Settings2, GripVertical, LockKeyhole } from "lucide-react";
 import type { Dashboard, Reply } from "../types";
 import type { T } from "../i18n";
-import { dockAgents, requestsForProfile } from "../lib/dock";
+import { dockAgents, requestsForProfile, profileActivity } from "../lib/dock";
 import { QuotaOrb } from "./QuotaOrb";
 import { type ApprovalDraft } from "./ApprovalCard";
 import { DockDetails } from "./DockDetails";
@@ -21,6 +21,7 @@ export function AgentDock({
   onDetails,
   onSettings,
   onSessions,
+  onSession,
   onRespond,
 }: {
   data: Dashboard;
@@ -49,6 +50,7 @@ export function AgentDock({
   onDetails: (id: string) => void;
   onSettings: () => void;
   onSessions: (id: string) => void;
+  onSession?: (id: string) => void;
   onRespond: (id: string, reply: Reply) => Promise<void>;
 }) {
   const s = data.settings;
@@ -277,6 +279,11 @@ export function AgentDock({
               <QuotaOrb
                 agent={agent}
                 settings={s}
+                activity={profileActivity(
+                  agent.profile.id,
+                  data.sessions,
+                  live,
+                )}
                 magnified={hoveredId === agent.profile.id}
                 pending={
                   requestsForProfile(agent.profile.id, data.sessions, live)
@@ -294,7 +301,10 @@ export function AgentDock({
           <button
             className="dock-settings"
             title={t("settings")}
-            onClick={onSettings}
+            onClick={() => {
+              dismiss();
+              onSettings();
+            }}
           >
             <Settings2 size={17} />
           </button>
@@ -321,6 +331,15 @@ export function AgentDock({
           onFocusCapture={cancelClose}
         >
           <DockDetails
+            compact={!pinned}
+            onSession={
+              onSession
+                ? (id) => {
+                    dismiss();
+                    onSession(id);
+                  }
+                : undefined
+            }
             current={current}
             s={s}
             requests={requests}
