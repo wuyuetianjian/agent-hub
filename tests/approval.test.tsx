@@ -9,7 +9,7 @@ test("approval identifies the original account and project before the decision b
     <ApprovalCard
       request={{
         id: "r",
-        sessionId: "session-12345678",
+        sessionId: "external:codex:01234567-89ab-cdef-0123-456789abcdef",
         providerId: "claude",
         profileLabel: "Work account A",
         cwd: "/projects/project-A",
@@ -30,6 +30,8 @@ test("approval identifies the original account and project before the decision b
   );
   assert.ok(html.includes("Work account A"));
   assert.ok(html.includes("/projects/project-A"));
+  assert.ok(html.includes("01234567"));
+  assert.ok(!html.includes(">external<"));
   assert.ok(html.indexOf("Work account A") < html.indexOf("Allow once"));
 });
 

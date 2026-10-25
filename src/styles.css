@@ -2538,3 +2538,19 @@ input[type="radio"] {
   max-height: 200px;
   overflow: auto;
 }
+
+.codex-hook-setup {
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+}
+.codex-hook-setup pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+  padding: 12px;
+  background: var(--bg);
+  font-size: 12px;
+}

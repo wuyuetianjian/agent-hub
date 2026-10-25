@@ -163,11 +163,14 @@ export function DockDetails({
         {t(
           approvalConnection(current.profile.id, sessions) === "connected"
             ? "approvalConnected"
-            : approvalConnection(current.profile.id, sessions) === "history"
-              ? "approvalHistoryOnly"
-              : approvalConnection(current.profile.id, sessions) === "terminal"
-                ? "approvalInTerminal"
-                : "approvalNoSession",
+            : approvalConnection(current.profile.id, sessions) === "pending"
+              ? "codexHookPending"
+              : approvalConnection(current.profile.id, sessions) === "history"
+                ? "approvalHistoryOnly"
+                : approvalConnection(current.profile.id, sessions) ===
+                    "terminal"
+                  ? "approvalInTerminal"
+                  : "approvalNoSession",
         )}
       </p>
       {requests.length ? (

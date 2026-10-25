@@ -219,6 +219,7 @@ pub struct Reply {
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Dashboard {
+    pub codex_hooks: Vec<crate::codex_dispatcher::Coverage>,
     pub agents: Vec<AgentView>,
     pub settings: Settings,
     pub sessions: Vec<SessionInfo>,

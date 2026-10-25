@@ -9,8 +9,15 @@ export function defaultSessionMode(
 export function approvalConnection(
   profileId: string,
   sessions: SessionInfo[],
-): "connected" | "terminal" | "history" | "none" {
+): "connected" | "pending" | "terminal" | "history" | "none" {
   const own = sessions.filter((session) => session.profileId === profileId);
+  if (
+    own.some(
+      (s) =>
+        s.interactionChannel === "codex-hook" && s.status === "hook-connected",
+    )
+  )
+    return "connected";
   const live = own.filter(
     (session) => !session.readOnly && session.status === "running",
   );
@@ -22,6 +29,13 @@ export function approvalConnection(
     )
   )
     return "connected";
+  if (
+    own.some(
+      (s) =>
+        s.interactionChannel === "codex-hook" && s.status === "hook-pending",
+    )
+  )
+    return "pending";
   if (live.length) return "terminal";
   return own.some((session) => session.readOnly) ? "history" : "none";
 }

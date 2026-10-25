@@ -833,7 +833,11 @@ export default function App() {
                                   <button
                                     className="text-button"
                                     disabled={
-                                      currentSession.status !== "running"
+                                      currentSession.status !== "running" &&
+                                      ![
+                                        "hook-pending",
+                                        "hook-connected",
+                                      ].includes(currentSession.status)
                                     }
                                     onClick={() =>
                                       void call("stop_session", {
@@ -843,11 +847,37 @@ export default function App() {
                                         .catch((e) => setError(String(e)))
                                     }
                                   >
-                                    {t("stop")}
+                                    {t(
+                                      currentSession.mode === "hook"
+                                        ? "disconnectCodexApprovals"
+                                        : "stop",
+                                    )}
                                   </button>
                                 </div>
-                                {currentSession.readOnly ? (
+                                {currentSession.readOnly ||
+                                currentSession.mode === "hook" ? (
                                   <ExternalSession
+                                    key={currentSession.id}
+                                    coverage={data.codexHooks?.find(
+                                      (coverage) =>
+                                        coverage.profileId ===
+                                        currentSession.profileId,
+                                    )}
+                                    onDisableAll={async () => {
+                                      await call("disable_codex_hooks", {
+                                        profileId: currentSession.profileId,
+                                      });
+                                      await load();
+                                    }}
+                                    onConnect={async () => {
+                                      const setup = await call<{
+                                        installCommand: string;
+                                      }>("prepare_codex_hook", {
+                                        sessionId: currentSession.id,
+                                      });
+                                      await load();
+                                      return setup;
+                                    }}
                                     session={currentSession}
                                     t={t}
                                     locale={data.settings.locale}

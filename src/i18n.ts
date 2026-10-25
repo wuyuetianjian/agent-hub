@@ -49,6 +49,23 @@ const zh = {
   send: "发送",
   reply: "提交回答",
   decline: "拒绝",
+  codexHookSession: "原客户端审批桥接",
+  connectCodexApprovals: "接入所有 Codex 窗口",
+  codexAllWindowsInstalled:
+    "全窗口 Hook 已安装：覆盖此账号配置目录下不同项目的已有和新建窗口。各客户端仍需加载并信任 Hook；安装状态不代表当前会话已接通。",
+  codexAllWindowsPrepared:
+    "全窗口接入已准备：请安装下方用户级 Hook，并在各原客户端审查信任。无需逐窗口重复安装。",
+  disableCodexAllWindows: "暂停所有窗口审批",
+  showCodexHookSetup: "查看接入步骤",
+  disconnectCodexApprovals: "断开审批连接",
+  codexHookConnected:
+    "已收到原客户端的审批 Hook；确认操作会返回原会话，不接管终端或对话输入。",
+  codexHookPending: "等待原客户端首次调用审批 Hook；尚未确认接通。",
+  codexHookDisconnected: "审批桥接已断开，原会话继续由原客户端管理。",
+  codexHookInstall:
+    "在本机终端执行下方安装命令，将统一入口安装到此账号的 Codex 用户目录。覆盖所有项目和新窗口；备份原文件、保留无关 Hook，并迁移已知的旧 Orbit 项目 Hook。",
+  codexHookTrust:
+    "随后在原 Codex 客户端打开 /hooks，审查并信任新增的 PermissionRequest Hook。只有真实审批到达后才显示已连接；断开本连接不会终止原会话。",
   approvalReasonMissing: "未提供审批原因",
   approvalAction: "命令／操作",
   allow: "允许一次",
@@ -234,6 +251,25 @@ const en: Record<Key, string> = {
   send: "Send",
   reply: "Submit answer",
   decline: "Deny",
+  codexHookSession: "Original client approval bridge",
+  connectCodexApprovals: "Connect all Codex windows",
+  codexAllWindowsInstalled:
+    "All-window hook installed: covers existing and new windows across projects using this account's Codex home. Each client must load and trust the hook; installation does not verify this session's connection.",
+  codexAllWindowsPrepared:
+    "All-window connection prepared: install the user-level hook below and review/trust it in each original client. No per-window installation is needed.",
+  disableCodexAllWindows: "Pause all-window approvals",
+  showCodexHookSetup: "Show connection instructions",
+  disconnectCodexApprovals: "Disconnect approvals",
+  codexHookConnected:
+    "An approval hook arrived from the original client. Decisions return to that session; terminal and conversation input remain in that client.",
+  codexHookPending:
+    "Waiting for the original client's first approval hook; connection is not verified yet.",
+  codexHookDisconnected:
+    "Approval bridge disconnected. The original client still owns the session.",
+  codexHookInstall:
+    "Run this installer in a local terminal to install the dispatcher in this account's Codex home. It covers all projects and new windows, backs up existing files, preserves unrelated hooks and migrates known old Orbit project hooks.",
+  codexHookTrust:
+    "Then open /hooks in the original Codex client, review and trust the new PermissionRequest hook. Connected status appears only after a real approval arrives. Disconnecting does not terminate the original session.",
   approvalReasonMissing: "No approval reason provided",
   approvalAction: "Command / action",
   allow: "Allow once",

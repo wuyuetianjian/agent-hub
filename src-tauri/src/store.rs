@@ -12,6 +12,12 @@ impl Store {
             std::fs::create_dir_all(parent)?;
         }
         let connection = Connection::open(path)?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))?;
+        }
+        connection.execute_batch("CREATE TABLE IF NOT EXISTS codex_dispatchers (id TEXT PRIMARY KEY, value TEXT NOT NULL); CREATE TABLE IF NOT EXISTS codex_hook_blocks (profile TEXT NOT NULL, thread TEXT NOT NULL, PRIMARY KEY(profile,thread));")?;
         connection.execute_batch("CREATE TABLE IF NOT EXISTS window_state (id TEXT PRIMARY KEY, value TEXT NOT NULL); PRAGMA journal_mode=WAL; PRAGMA user_version=1; CREATE TABLE IF NOT EXISTS settings (id INTEGER PRIMARY KEY CHECK (id=1), value TEXT NOT NULL); CREATE TABLE IF NOT EXISTS profiles (id TEXT PRIMARY KEY, value TEXT NOT NULL); CREATE TABLE IF NOT EXISTS snapshots (id TEXT PRIMARY KEY, value TEXT NOT NULL);")?;
         for p in &config.providers {
             let profile = Profile {
@@ -69,6 +75,48 @@ impl Store {
         crate::config::validate_settings(settings)?;
         self.connection.lock().unwrap().execute("INSERT INTO settings(id,value) VALUES(1,?1) ON CONFLICT(id) DO UPDATE SET value=excluded.value",[serde_json::to_string(settings)?])?;
         Ok(())
+    }
+    pub fn dispatchers(&self) -> Result<Vec<crate::codex_dispatcher::Registration>> {
+        let c = self.connection.lock().unwrap();
+        let mut query = c.prepare("SELECT value FROM codex_dispatchers")?;
+        let rows = query.query_map([], |r| r.get::<_, String>(0))?;
+        rows.map(|row| Ok(serde_json::from_str(&row?)?)).collect()
+    }
+    pub fn save_dispatcher(
+        &self,
+        registration: &crate::codex_dispatcher::Registration,
+    ) -> Result<()> {
+        self.connection.lock().unwrap().execute("INSERT INTO codex_dispatchers(id,value) VALUES(?1,?2) ON CONFLICT(id) DO UPDATE SET value=excluded.value", params![registration.profile.id,serde_json::to_string(registration)?])?;
+        Ok(())
+    }
+    pub fn remove_dispatcher(&self, profile: &str) -> Result<()> {
+        self.connection
+            .lock()
+            .unwrap()
+            .execute("DELETE FROM codex_dispatchers WHERE id=?1", [profile])?;
+        Ok(())
+    }
+    pub fn block_hook_thread(&self, profile: &str, thread: &str, block: bool) -> Result<()> {
+        let c = self.connection.lock().unwrap();
+        if block {
+            c.execute(
+                "INSERT OR IGNORE INTO codex_hook_blocks(profile,thread) VALUES(?1,?2)",
+                params![profile, thread],
+            )?;
+        } else {
+            c.execute(
+                "DELETE FROM codex_hook_blocks WHERE profile=?1 AND thread=?2",
+                params![profile, thread],
+            )?;
+        }
+        Ok(())
+    }
+    pub fn hook_thread_blocked(&self, profile: &str, thread: &str) -> Result<bool> {
+        Ok(self.connection.lock().unwrap().query_row(
+            "SELECT EXISTS(SELECT 1 FROM codex_hook_blocks WHERE profile=?1 AND thread=?2)",
+            params![profile, thread],
+            |r| r.get(0),
+        )?)
     }
     pub fn profiles(&self) -> Result<Vec<Profile>> {
         let c = self.connection.lock().unwrap();

@@ -140,6 +140,7 @@ export interface Reply {
   answers: Record<string, string[]>;
 }
 export interface Dashboard {
+  codexHooks?: { profileId: string; installed: boolean }[];
   agents: AgentView[];
   settings: Settings;
   sessions: SessionInfo[];
