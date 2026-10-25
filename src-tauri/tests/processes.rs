@@ -160,13 +160,22 @@ async fn pty_handles_unicode_and_keeps_its_original_account_binding() {
         sessions.original_profile(&info.id).unwrap().label,
         "Account A"
     );
+    let mut last_output = String::new();
     let received = tokio::time::timeout(std::time::Duration::from_secs(4), async {
+        let mut cursor_replied = false;
         loop {
             let replay = sessions.replay(&info.id).unwrap();
             let output = String::from_utf8_lossy(
                 &STANDARD.decode(replay["bytes"].as_str().unwrap()).unwrap(),
             )
             .into_owned();
+            last_output = output.clone();
+            // ConPTY inherits the terminal cursor and waits for a DSR reply.
+            // Replay accumulates bytes, so split requests are handled as well.
+            if !cursor_replied && output.contains("\x1b[6n") {
+                sessions.write(&info.id, "\x1b[1;1R").unwrap();
+                cursor_replied = true;
+            }
             if output.contains("READY") {
                 sessions.write(&info.id, "你好\r").unwrap();
                 break;
@@ -179,6 +188,7 @@ async fn pty_handles_unicode_and_keeps_its_original_account_binding() {
                 &STANDARD.decode(replay["bytes"].as_str().unwrap()).unwrap(),
             )
             .into_owned();
+            last_output = output.clone();
             if output.contains("received:你好") {
                 return output;
             }
@@ -189,6 +199,6 @@ async fn pty_handles_unicode_and_keeps_its_original_account_binding() {
     sessions.stop_all();
     assert!(
         received.is_ok(),
-        "PTY must deliver Unicode input and output"
+        "PTY must deliver Unicode input and output; captured terminal output: {last_output:?}"
     );
 }
