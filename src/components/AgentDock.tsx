@@ -331,7 +331,7 @@ export function AgentDock({
           onFocusCapture={cancelClose}
         >
           <DockDetails
-            compact={!pinned}
+            compact={false}
             onSession={
               onSession
                 ? (id) => {

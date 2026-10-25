@@ -246,7 +246,7 @@ test("magnification changes only the target transform while preserving its norma
   );
 });
 
-test("hover peek is concise while a pinned card retains session actions", () => {
+test("full details and session actions are available without a click or pin", () => {
   const props = {
     current: agent(38),
     s: settings,
@@ -262,11 +262,11 @@ test("hover peek is concise while a pinned card retains session actions", () => 
     onRespond: async () => {},
   };
   const peek = renderToStaticMarkup(
-    <DockDetails {...props} compact onPin={() => {}} />,
+    <DockDetails {...props} onPin={() => {}} />,
   );
-  assert.match(peek, /hud-peek/);
+  assert.ok(!peek.includes('class="hud-peek"'));
   assert.match(peek, /38%/);
-  assert.ok(!peek.includes("dock-sessions-link"));
+  assert.ok(peek.includes("dock-sessions-link"));
   const full = renderToStaticMarkup(<DockDetails {...props} pinned />);
   assert.ok(full.includes("dock-sessions-link"));
 });

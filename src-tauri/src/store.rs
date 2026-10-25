@@ -4,7 +4,7 @@ use rusqlite::{params, Connection, OptionalExtension};
 use std::{path::Path, sync::Mutex};
 
 pub struct Store {
-    connection: Mutex<Connection>,
+    pub(crate) connection: Mutex<Connection>,
 }
 impl Store {
     pub fn open(path: &Path, config: &Config) -> Result<Self> {

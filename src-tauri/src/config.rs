@@ -41,6 +41,15 @@ pub fn data_dir() -> Result<PathBuf> {
         .join(env!("CARGO_PKG_NAME")))
 }
 pub fn validate_settings(s: &crate::model::Settings) -> Result<()> {
+    if !(15..=3600).contains(&s.usage_refresh_seconds)
+        || !(1..=366).contains(&s.usage_history_days)
+        || !(1..=50000).contains(&s.usage_max_files)
+        || !(4096..=268435456).contains(&s.usage_max_bytes_per_scan)
+        || !(1024..=16777216).contains(&s.usage_max_line_bytes)
+        || !(24..=10000).contains(&s.usage_max_buckets)
+    {
+        bail!("Invalid token history settings");
+    }
     if !(15..=86400).contains(&s.refresh_seconds) {
         bail!("Refresh interval must be between 15 and 86400 seconds");
     }

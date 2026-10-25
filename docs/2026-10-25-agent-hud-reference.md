@@ -13,3 +13,7 @@ Validation: regression tests for compact hover content vs pinned details, source
 ## Verification results
 
 49 Rust tests and 21 frontend tests passed. TypeScript/Vite build, macOS native app build and formatting/whitespace checks passed. Review found that the browser preview initially omitted compact mode and exact-session callbacks; both were aligned with the desktop path before packaging.
+
+## User correction: readable hover details
+
+The user requires complete details on hover, without a click-to-expand step. Keep click only as an optional pin action. Fix the detached popup's missing theme scope: its root did not inherit `.app-frame` CSS variables, causing the background to become transparent and text colors undefined. Apply the same theme scope to this independent window while keeping its content-measured height. Use an opaque surface for quota and confirmation content.

@@ -39,34 +39,7 @@ pub fn scan_with_environment(
     if limit == 0 {
         return vec![];
     }
-    let configured = if !profile.config_dir.is_empty() {
-        Some(profile.config_dir.as_str())
-    } else {
-        provider
-            .config_env
-            .as_ref()
-            .and_then(|key| env.get(key))
-            .filter(|v| !v.is_empty())
-            .map(String::as_str)
-    };
-    let roots: Vec<PathBuf> = if let Some(path) = configured {
-        crate::discovery::expand_pattern(path, home, env)
-            .into_iter()
-            .collect()
-    } else {
-        provider
-            .detection_paths
-            .iter()
-            .map(|p| {
-                let path = PathBuf::from(p);
-                if path.is_absolute() {
-                    path
-                } else {
-                    home.join(path)
-                }
-            })
-            .collect()
-    };
+    let roots = profile_roots(profile, provider, home, env);
     let mut sessions: HashMap<String, SessionInfo> = HashMap::new();
     for root in roots {
         let mut usable_index = false;
@@ -125,7 +98,12 @@ pub fn scan_with_environment(
     rows
 }
 /// Bound directory enumeration before sorting or opening any history files.
-fn bounded_paths(root: &Path, parts: &[&str], budget: &mut usize, files: &mut Vec<PathBuf>) {
+pub(crate) fn bounded_paths(
+    root: &Path,
+    parts: &[&str],
+    budget: &mut usize,
+    files: &mut Vec<PathBuf>,
+) {
     let Some((first, rest)) = parts.split_first() else {
         return;
     };
@@ -295,4 +273,42 @@ fn from_header(path: &Path, profile: &Profile) -> Option<SessionInfo> {
         created,
         modified,
     ))
+}
+
+pub fn profile_roots(
+    profile: &Profile,
+    provider: &Provider,
+    home: &Path,
+    env: &HashMap<String, String>,
+) -> Vec<PathBuf> {
+    let configured = if !profile.config_dir.is_empty() {
+        Some(profile.config_dir.as_str())
+    } else {
+        provider
+            .config_env
+            .as_ref()
+            .and_then(|key| env.get(key))
+            .filter(|v| !v.is_empty())
+            .map(String::as_str)
+    };
+    let roots: Vec<PathBuf> = if let Some(path) = configured {
+        crate::discovery::expand_pattern(path, home, env)
+            .into_iter()
+            .collect()
+    } else {
+        provider
+            .detection_paths
+            .iter()
+            .map(|p| {
+                let path = PathBuf::from(p);
+                if path.is_absolute() {
+                    path
+                } else {
+                    home.join(path)
+                }
+            })
+            .collect()
+    };
+
+    roots
 }

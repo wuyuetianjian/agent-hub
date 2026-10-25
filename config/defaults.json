@@ -1,6 +1,6 @@
 {
   "appName": "Agent Orbit",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "settings": {
     "locale": "zh",
     "theme": "dark",
@@ -59,7 +59,13 @@
         "size": 44,
         "hoverSize": 60
       }
-    ]
+    ],
+    "usageRefreshSeconds": 60,
+    "usageHistoryDays": 90,
+    "usageMaxFiles": 5000,
+    "usageMaxBytesPerScan": 33554432,
+    "usageMaxLineBytes": 4194304,
+    "usageMaxBuckets": 2200
   },
   "providers": [
     {
@@ -83,7 +89,10 @@
         "/usr/local/bin/claude",
         "${APPDATA}/npm/claude.cmd",
         "${LOCALAPPDATA}/Microsoft/WinGet/Links/claude.exe"
-      ]
+      ],
+      "usageLogPaths": ["projects/*/*.jsonl", "projects/*/*/subagents/*.jsonl"],
+      "usageFormat": "claude",
+      "configEnv": "CLAUDE_CONFIG_DIR"
     },
     {
       "id": "codex",
@@ -123,7 +132,9 @@
       ],
       "sessionIndexPaths": ["state_*.sqlite"],
       "sessionLogPaths": ["sessions/*/*/*/*.jsonl"],
-      "configEnv": "CODEX_HOME"
+      "configEnv": "CODEX_HOME",
+      "usageLogPaths": ["sessions/*/*/*/*.jsonl", "archived_sessions/*.jsonl"],
+      "usageFormat": "codex"
     },
     {
       "id": "gemini",
@@ -146,7 +157,12 @@
         "/usr/local/bin/gemini",
         "${APPDATA}/npm/gemini.cmd",
         "${LOCALAPPDATA}/Microsoft/WinGet/Links/gemini.exe"
-      ]
+      ],
+      "usageLogPaths": [
+        "tmp/*/chats/session-*.json",
+        "tmp/*/chats/session-*.jsonl"
+      ],
+      "usageFormat": "gemini"
     },
     {
       "id": "antigravity",

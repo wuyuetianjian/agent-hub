@@ -24,6 +24,10 @@ pub struct Provider {
     pub session_log_paths: Vec<String>,
     #[serde(default)]
     pub config_env: Option<String>,
+    #[serde(default)]
+    pub usage_log_paths: Vec<String>,
+    #[serde(default)]
+    pub usage_format: String,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -38,6 +42,12 @@ pub struct Settings {
     pub locale: String,
     pub theme: String,
     pub refresh_seconds: u64,
+    pub usage_refresh_seconds: u64,
+    pub usage_history_days: u64,
+    pub usage_max_files: usize,
+    pub usage_max_bytes_per_scan: u64,
+    pub usage_max_line_bytes: u64,
+    pub usage_max_buckets: usize,
     pub stale_seconds: u64,
     pub request_timeout_seconds: u64,
     pub interaction_timeout_seconds: u64,

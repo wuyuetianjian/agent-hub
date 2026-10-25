@@ -51,6 +51,33 @@ export async function call<T>(
     if (existing) existing.profile = profile;
     return undefined as T;
   }
+  if (command === "get_usage") {
+    const tokens = {
+      total: 0,
+      input: 0,
+      output: 0,
+      cacheRead: 0,
+      cacheWrite: 0,
+      reasoning: 0,
+    };
+    return {
+      total: tokens,
+      buckets: (args.intervals as { start: number; end: number }[]).map(
+        (interval) => ({ ...interval, tokens }),
+      ),
+      agents: [],
+      sources: preview.agents.map((agent) => ({
+        profileId: agent.profile.id,
+        providerId: agent.provider.id,
+        status: "noLogs",
+        files: 0,
+        warnings: 0,
+        hasData: false,
+      })),
+      scannedAt: Date.now() / 1000,
+      partial: false,
+    } as T;
+  }
   if (command === "set_window_view") return undefined as T;
   throw new Error(
     "此操作需要桌面应用 / Launch the desktop app for this action.",

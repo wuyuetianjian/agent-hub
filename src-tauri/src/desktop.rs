@@ -41,6 +41,30 @@ async fn get_dashboard(runtime: State<'_, Arc<Runtime>>) -> CommandResult<Dashbo
 }
 
 #[tauri::command]
+async fn get_usage(
+    runtime: State<'_, Arc<Runtime>>,
+    intervals: Vec<crate::usage::Interval>,
+) -> CommandResult<crate::usage::UsageReport> {
+    let runtime = runtime.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let _guard = runtime.usage_lock.lock().unwrap();
+        let profiles = runtime.store.profiles().map_err(error)?;
+        let settings = runtime.settings.read().unwrap().clone();
+        crate::usage::collect(
+            &runtime.store,
+            &profiles,
+            &runtime.config.providers,
+            &settings,
+            &dirs::home_dir().unwrap_or_default(),
+            &std::env::vars().collect(),
+            &intervals,
+        )
+        .map_err(error)
+    })
+    .await
+    .map_err(error)?
+}
+#[tauri::command]
 async fn refresh_profile(
     runtime: State<'_, Arc<Runtime>>,
     profile_id: String,
@@ -741,6 +765,7 @@ pub fn run() {
         .plugin(tauri_plugin_autostart::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             get_dashboard,
+            get_usage,
             refresh_profile,
             save_profile,
             save_settings,

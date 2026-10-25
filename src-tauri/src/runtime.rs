@@ -16,6 +16,7 @@ pub struct Runtime {
     pub bridge_url: RwLock<String>,
     refreshing: Mutex<HashSet<String>>,
     external_cache: Mutex<Option<(std::time::Instant, Vec<SessionInfo>)>>,
+    pub usage_lock: Mutex<()>,
     pub data_dir: std::path::PathBuf,
 }
 impl Runtime {
@@ -38,6 +39,7 @@ impl Runtime {
             bridge_url: RwLock::new(String::new()),
             refreshing: Mutex::new(HashSet::new()),
             external_cache: Mutex::new(None),
+            usage_lock: Mutex::new(()),
             data_dir,
         }))
     }

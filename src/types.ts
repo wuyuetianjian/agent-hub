@@ -11,11 +11,19 @@ export interface Provider {
   detectionPaths: string[];
   executablePaths?: string[];
   desktopPaths?: string[];
+  usageLogPaths?: string[];
+  usageFormat?: string;
 }
 export interface Settings {
   locale: "zh" | "en";
   theme: "dark" | "light" | "system";
   refreshSeconds: number;
+  usageRefreshSeconds: number;
+  usageHistoryDays: number;
+  usageMaxFiles: number;
+  usageMaxBytesPerScan: number;
+  usageMaxLineBytes: number;
+  usageMaxBuckets: number;
   staleSeconds: number;
   requestTimeoutSeconds: number;
   interactionTimeoutSeconds: number;
@@ -138,4 +146,32 @@ export interface AppEvent {
   kind: string;
   sessionId: string | null;
   data: { bytes?: string; sequence?: number };
+}
+
+export interface TokenCounts {
+  total: number;
+  input: number;
+  output: number;
+  cacheRead: number;
+  cacheWrite: number;
+  reasoning: number;
+}
+export interface UsageInterval {
+  start: number;
+  end: number;
+}
+export interface UsageReport {
+  total: TokenCounts;
+  buckets: (UsageInterval & { tokens: TokenCounts })[];
+  agents: { profileId: string; providerId: string; tokens: TokenCounts }[];
+  sources: {
+    profileId: string;
+    providerId: string;
+    status: string;
+    files: number;
+    warnings: number;
+    hasData: boolean;
+  }[];
+  scannedAt: number;
+  partial: boolean;
 }

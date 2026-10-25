@@ -46,6 +46,7 @@ import { AgentIcon } from "./components/AgentIcon";
 import { QuotaCard } from "./components/QuotaCard";
 import { AgentDetail } from "./components/AgentDetail";
 import { ApprovalCard, type ApprovalDraft } from "./components/ApprovalCard";
+import { TokenUsagePanel } from "./components/TokenUsagePanel";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { ProfileDialog, LaunchDialog } from "./components/Dialogs";
 import { summaryWindow } from "./lib/summary";
@@ -394,7 +395,7 @@ export default function App() {
     return (
       <div
         data-theme={theme}
-        className="detached-panel-root"
+        className="app-frame detached-panel-root"
         ref={panelRoot}
         onMouseEnter={() => presence(true)}
         onMouseLeave={() => presence(false)}
@@ -416,7 +417,7 @@ export default function App() {
             style={{ maxHeight: data.settings.dockPopupHeight }}
           >
             <DockDetails
-              compact={!panelTarget?.pinned}
+              compact={false}
               onSession={(id) => {
                 presence(false, true);
                 openPage("sessions", undefined, id);
@@ -879,6 +880,14 @@ export default function App() {
                               onChange={(e) => setSearch(e.target.value)}
                             />
                           </label>
+                        )}
+                        {page === "overview" && (
+                          <>
+                            <TokenUsagePanel data={data} t={t} />
+                            <div className="section-heading">
+                              <h3>{t("quotaRemaining")}</h3>
+                            </div>
+                          </>
                         )}
                         <div className="agents-grid">
                           {(page === "agents" ? filtered : active).map((a) => (
