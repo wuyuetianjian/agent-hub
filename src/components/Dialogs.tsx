@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { X, FolderOpen, Play, Check } from "lucide-react";
+import { defaultSessionMode } from "../lib/interaction";
 import { chooseDirectory } from "../api";
 import type { AgentView, Profile } from "../types";
 import type { T } from "../i18n";
@@ -154,7 +155,13 @@ export function LaunchDialog({
     initial || agents[0]?.profile.id || "",
   );
   const [cwd, setCwd] = useState("");
-  const [mode, setMode] = useState("terminal");
+  const [mode, setMode] = useState(() =>
+    defaultSessionMode(
+      agents.find(
+        (agent) => agent.profile.id === (initial || agents[0]?.profile.id),
+      )?.provider,
+    ),
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const agent = agents.find((a) => a.profile.id === profile);
@@ -191,7 +198,12 @@ export function LaunchDialog({
               value={profile}
               onChange={(e) => {
                 setProfile(e.target.value);
-                setMode("terminal");
+                setMode(
+                  defaultSessionMode(
+                    agents.find((agent) => agent.profile.id === e.target.value)
+                      ?.provider,
+                  ),
+                );
               }}
             >
               {agents.map((a) => (
@@ -226,7 +238,14 @@ export function LaunchDialog({
           </label>
           <label>
             {t("mode")}
-            <select value={mode} onChange={(e) => setMode(e.target.value)}>
+            <select
+              value={mode}
+              onChange={(e) =>
+                setMode(
+                  e.target.value === "structured" ? "structured" : "terminal",
+                )
+              }
+            >
               <option value="terminal">{t("terminal")}</option>
               {agent?.provider.id === "codex" && (
                 <option value="structured">
@@ -235,6 +254,15 @@ export function LaunchDialog({
               )}
             </select>
           </label>
+          <p className="field-hint">
+            {t(
+              agent?.provider.id === "codex" && mode === "structured"
+                ? "structuredApprovalHint"
+                : agent?.provider.id === "claude"
+                  ? "claudeApprovalHint"
+                  : "terminalApprovalHint",
+            )}
+          </p>
           {error && <p className="form-error">{error}</p>}
         </div>
         <footer>

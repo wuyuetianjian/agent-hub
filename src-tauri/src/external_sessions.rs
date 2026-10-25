@@ -155,6 +155,7 @@ fn session(
     updated: i64,
 ) -> SessionInfo {
     SessionInfo {
+        interaction_channel: "history".into(),
         id: format!("external:{}:{}", profile.id, id),
         profile_id: profile.id.clone(),
         provider_id: profile.provider_id.clone(),

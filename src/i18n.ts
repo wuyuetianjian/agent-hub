@@ -139,6 +139,17 @@ const zh = {
   profileLabel: "账号名称",
   addProfile: "添加账号",
   mode: "会话方式",
+  structuredApprovalHint:
+    "Codex 结构化交互：CLI 判定需要审批时，在对应 AI 的浮窗中确认。",
+  terminalApprovalHint:
+    "终端模式的提示需要在终端内处理；Codex 浮窗确认请使用结构化交互模式。",
+  claudeApprovalHint:
+    "从这里启动 Claude 后，会通过本地 Hook 接收确认；原有外部会话不会自动接管。",
+  approvalConnected: "浮窗确认通道已连接",
+  approvalHistoryOnly:
+    "仅识别到外部历史会话，确认仍在原客户端处理；请从本工具启动交互会话。",
+  approvalInTerminal: "当前会话在终端内处理确认，浮窗确认通道未连接。",
+  approvalNoSession: "尚无已连接的交互会话；请从本工具启动 CLI。",
   localOnly: "数据保存在本机",
   preview: "浏览器预览 · 启动桌面应用以读取本机账号",
   viewAll: "查看全部",
@@ -312,6 +323,19 @@ const en: Record<Key, string> = {
   profileLabel: "Account label",
   addProfile: "Add account",
   mode: "Session mode",
+  structuredApprovalHint:
+    "Codex structured mode: when the CLI requires approval, confirm beside its AI icon.",
+  terminalApprovalHint:
+    "Terminal prompts stay in the terminal. Use structured mode for Codex floating approvals.",
+  claudeApprovalHint:
+    "Launching Claude here connects local approval hooks. Existing external sessions are not automatically attached.",
+  approvalConnected: "Floating approval channel connected",
+  approvalHistoryOnly:
+    "External history only. Handle approval in the original client or launch an interactive session here.",
+  approvalInTerminal:
+    "This session handles confirmation in the terminal; no floating channel is connected.",
+  approvalNoSession:
+    "No connected interactive session. Launch the CLI from this app.",
   localOnly: "Stored on this device",
   preview: "Browser preview · launch the desktop app to read local accounts",
   viewAll: "View all",

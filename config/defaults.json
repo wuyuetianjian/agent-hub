@@ -1,6 +1,6 @@
 {
   "appName": "Agent Orbit",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "settings": {
     "locale": "zh",
     "theme": "dark",
@@ -65,7 +65,8 @@
     "usageMaxFiles": 5000,
     "usageMaxBytesPerScan": 33554432,
     "usageMaxLineBytes": 4194304,
-    "usageMaxBuckets": 2200
+    "usageMaxBuckets": 2200,
+    "codexApprovalPolicy": "untrusted"
   },
   "providers": [
     {
@@ -92,7 +93,8 @@
       ],
       "usageLogPaths": ["projects/*/*.jsonl", "projects/*/*/subagents/*.jsonl"],
       "usageFormat": "claude",
-      "configEnv": "CLAUDE_CONFIG_DIR"
+      "configEnv": "CLAUDE_CONFIG_DIR",
+      "defaultSessionMode": "terminal"
     },
     {
       "id": "codex",
@@ -134,7 +136,8 @@
       "sessionLogPaths": ["sessions/*/*/*/*.jsonl"],
       "configEnv": "CODEX_HOME",
       "usageLogPaths": ["sessions/*/*/*/*.jsonl", "archived_sessions/*.jsonl"],
-      "usageFormat": "codex"
+      "usageFormat": "codex",
+      "defaultSessionMode": "structured"
     },
     {
       "id": "gemini",
@@ -162,7 +165,8 @@
         "tmp/*/chats/session-*.json",
         "tmp/*/chats/session-*.jsonl"
       ],
-      "usageFormat": "gemini"
+      "usageFormat": "gemini",
+      "defaultSessionMode": "terminal"
     },
     {
       "id": "antigravity",
@@ -185,7 +189,8 @@
         "/usr/local/bin/agy",
         "${APPDATA}/npm/agy.cmd",
         "${LOCALAPPDATA}/Microsoft/WinGet/Links/agy.exe"
-      ]
+      ],
+      "defaultSessionMode": "terminal"
     },
     {
       "id": "cursor",
@@ -208,7 +213,8 @@
         "/usr/local/bin/cursor-agent",
         "${APPDATA}/npm/cursor-agent.cmd",
         "${LOCALAPPDATA}/Microsoft/WinGet/Links/cursor-agent.exe"
-      ]
+      ],
+      "defaultSessionMode": "terminal"
     },
     {
       "id": "copilot",
@@ -234,7 +240,8 @@
         "/usr/local/bin/copilot",
         "${APPDATA}/npm/copilot.cmd",
         "${LOCALAPPDATA}/Microsoft/WinGet/Links/copilot.exe"
-      ]
+      ],
+      "defaultSessionMode": "terminal"
     },
     {
       "id": "windsurf",
@@ -257,7 +264,8 @@
         "/usr/local/bin/windsurf",
         "${APPDATA}/npm/windsurf.cmd",
         "${LOCALAPPDATA}/Microsoft/WinGet/Links/windsurf.exe"
-      ]
+      ],
+      "defaultSessionMode": "terminal"
     },
     {
       "id": "cline",
@@ -269,7 +277,8 @@
       "adapter": "collector",
       "usageUrl": "https://app.cline.bot/",
       "credentialPaths": [],
-      "detectionPaths": [".cline"]
+      "detectionPaths": [".cline"],
+      "defaultSessionMode": "terminal"
     },
     {
       "id": "roo",
@@ -281,7 +290,8 @@
       "adapter": "collector",
       "usageUrl": "https://app.roocode.com/",
       "credentialPaths": [],
-      "detectionPaths": [".roo"]
+      "detectionPaths": [".roo"],
+      "defaultSessionMode": "terminal"
     },
     {
       "id": "opencode",
@@ -304,7 +314,8 @@
         "/usr/local/bin/opencode",
         "${APPDATA}/npm/opencode.cmd",
         "${LOCALAPPDATA}/Microsoft/WinGet/Links/opencode.exe"
-      ]
+      ],
+      "defaultSessionMode": "terminal"
     },
     {
       "id": "continue",
@@ -327,7 +338,8 @@
         "/usr/local/bin/cn",
         "${APPDATA}/npm/cn.cmd",
         "${LOCALAPPDATA}/Microsoft/WinGet/Links/cn.exe"
-      ]
+      ],
+      "defaultSessionMode": "terminal"
     },
     {
       "id": "kiro",
@@ -350,7 +362,8 @@
         "/usr/local/bin/kiro-cli",
         "${APPDATA}/npm/kiro-cli.cmd",
         "${LOCALAPPDATA}/Microsoft/WinGet/Links/kiro-cli.exe"
-      ]
+      ],
+      "defaultSessionMode": "terminal"
     },
     {
       "id": "amazonq",
@@ -373,7 +386,8 @@
         "/usr/local/bin/q",
         "${APPDATA}/npm/q.cmd",
         "${LOCALAPPDATA}/Microsoft/WinGet/Links/q.exe"
-      ]
+      ],
+      "defaultSessionMode": "terminal"
     },
     {
       "id": "aider",
@@ -396,7 +410,8 @@
         "/usr/local/bin/aider",
         "${APPDATA}/npm/aider.cmd",
         "${LOCALAPPDATA}/Microsoft/WinGet/Links/aider.exe"
-      ]
+      ],
+      "defaultSessionMode": "terminal"
     }
   ],
   "endpoints": {

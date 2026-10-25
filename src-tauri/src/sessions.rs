@@ -133,6 +133,14 @@ impl Sessions {
             })?;
         let id = uuid::Uuid::new_v4().to_string();
         let info = SessionInfo {
+            interaction_channel: if provider.id == "codex" && mode == "structured" {
+                "codex-rpc"
+            } else if provider.id == "claude" && !bridge_url.is_empty() {
+                "claude-hook"
+            } else {
+                "terminal"
+            }
+            .into(),
             read_only: false,
             title: p.label.clone(),
             source: "managed".into(),
@@ -267,7 +275,7 @@ impl Sessions {
         .await?;
         let mut guard = crate::protocol::RpcCloseGuard::new(rpc.clone());
         let mut events = rpc.events.subscribe();
-        let init=async{rpc.call("initialize",json!({"clientInfo":{"name":"agent_orbit","title":"Agent Orbit","version":env!("CARGO_PKG_VERSION")},"capabilities":{"experimentalApi":true}})).await?;rpc.send(json!({"method":"initialized"})).await?;rpc.call("thread/start",json!({"cwd":cwd})).await}.await;
+        let init=async{rpc.call("initialize",json!({"clientInfo":{"name":"agent_orbit","title":"Agent Orbit","version":env!("CARGO_PKG_VERSION")},"capabilities":{"experimentalApi":true}})).await?;rpc.send(json!({"method":"initialized"})).await?;rpc.call("thread/start",json!({"cwd":cwd,"approvalPolicy":s.codex_approval_policy})).await}.await;
         let result = match init {
             Ok(v) => v,
             Err(err) => {

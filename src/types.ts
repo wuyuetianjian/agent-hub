@@ -13,6 +13,7 @@ export interface Provider {
   desktopPaths?: string[];
   usageLogPaths?: string[];
   usageFormat?: string;
+  defaultSessionMode?: string;
 }
 export interface Settings {
   locale: "zh" | "en";
@@ -27,6 +28,7 @@ export interface Settings {
   staleSeconds: number;
   requestTimeoutSeconds: number;
   interactionTimeoutSeconds: number;
+  codexApprovalPolicy: "untrusted" | "on-request";
   warningPercent: number;
   alwaysOnTop: boolean;
   compact: boolean;
@@ -99,6 +101,7 @@ export interface AgentView {
   snapshot: Snapshot;
 }
 export interface SessionInfo {
+  interactionChannel?: string;
   readOnly: boolean;
   title: string;
   source: string;

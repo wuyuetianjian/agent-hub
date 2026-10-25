@@ -28,6 +28,8 @@ pub struct Provider {
     pub usage_log_paths: Vec<String>,
     #[serde(default)]
     pub usage_format: String,
+    #[serde(default)]
+    pub default_session_mode: Option<String>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -51,6 +53,7 @@ pub struct Settings {
     pub stale_seconds: u64,
     pub request_timeout_seconds: u64,
     pub interaction_timeout_seconds: u64,
+    pub codex_approval_policy: String,
     pub warning_percent: u8,
     pub window_mode: String,
     pub summary_policy: String,
@@ -161,6 +164,8 @@ pub struct AgentView {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SessionInfo {
+    #[serde(default)]
+    pub interaction_channel: String,
     pub read_only: bool,
     pub title: String,
     pub source: String,

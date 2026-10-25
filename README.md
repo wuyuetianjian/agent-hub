@@ -6,6 +6,7 @@
 
 - 14 个 Agent 入口及离线图标；点击图标查看账号和全部额度周期。
 - 侧边设置：在设置中切换左侧/右侧；`dockSize`、`dockHoverSize`、`dockGap`、`dockPadding`、`dockPanelWidth`、`dockEdgeInset`、`dockHoverDelayMs`、`dockChromeHeight`、`dockPopupHeight` 可通过设置配置覆盖。
+- v0.1.8：Codex 默认使用可接收浮窗确认的结构化模式，托管线程显式启用审批策略；终端模式及外部只读历史会话不接管 Codex 确认。详情显示确认通道状态。`codexApprovalPolicy` 默认 `untrusted`（受管会话范围，不修改全局 CLI 配置），可配置为 `on-request`；安全读取等无需审批的操作不会弹窗。
 - v0.1.7：主窗口新增关闭（×）按钮，Ctrl/Cmd+W 同样关闭到后台；悬浮栏、监控与会话继续运行。通过托盘、悬浮框入口或 macOS Dock 重新打开主窗口，只有“退出应用”结束进程。
 - v0.1.6：主页面新增真实 Token 使用量，支持今日、近 7 天、近 30 天、自定义日期，按小时/天查看趋势与各 AI/账号目录的输入、输出、缓存读取明细。当前读取 Codex、Claude Code、Gemini CLI 本地记录，SQLite 增量去重，未采集显示“—”。悬浮详情恢复鼠标移入直接完整显示，并修复独立窗口主题缺失导致的透明背景。
 - v0.1.5：参考 [Agent HUD Simple 模式](https://github.com/jazzenchen/agent-hud-open)，采用安静的贴边面板、悬停精简摘要、点击固定完整卡片三级展示；待确认请求直接展开操作卡。新增真实会话状态与会话快捷入口，历史记录不会显示成实时运行；额度百分比继续只在悬停内容中显示。
@@ -55,6 +56,7 @@ A desktop agent quota companion built with Tauri 2, React, Rust and SQLite. It i
 
 - Fourteen agent entries with offline icons; click an icon for account details and all quota windows.
 - Dock configuration: choose left/right in Settings; override `dockSize`, `dockHoverSize`, `dockGap`, `dockPadding`, `dockPanelWidth`, `dockEdgeInset`, `dockHoverDelayMs`, `dockChromeHeight` and `dockPopupHeight` through settings configuration.
+- v0.1.8 defaults Codex launches to structured mode and explicitly sets approval policy on managed threads. Terminal mode and imported read-only history do not route Codex approvals to the HUD. Details show actual channel connectivity. `codexApprovalPolicy` defaults to `untrusted` and can use `on-request`; this applies only to managed sessions and does not modify global CLI config. Operations that do not require approval will not prompt.
 - v0.1.7 adds an explicit close (×) button and Ctrl/Cmd+W to hide the workspace while the HUD, monitoring and sessions keep running. Reopen via the tray, HUD settings or macOS Dock; only Quit application ends the process.
 - v0.1.6 adds real recorded token usage to Overview: Today, Last 7/30 days and custom dates, hourly/daily trends and per-agent/account input, output and cache-read breakdowns. Codex, Claude Code and Gemini CLI local logs are ingested incrementally into SQLite with deduplication; unavailable usage shows “—”. Full floating details now open directly on hover, with the detached theme/background fixed.
 - v0.1.5 follows the interaction hierarchy of [Agent HUD Simple mode](https://github.com/jazzenchen/agent-hud-open): a quiet edge rail, compact hover peek, and click-pinned full card. Pending confirmations bypass the peek. Live managed-session indicators and session shortcuts are shown without treating imported history as live activity. Percentage labels remain confined to hover content.

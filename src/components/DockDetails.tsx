@@ -18,6 +18,7 @@ import type { T } from "../i18n";
 import { AgentIcon } from "./AgentIcon";
 import { ApprovalCard, type ApprovalDraft } from "./ApprovalCard";
 import { statusText } from "./QuotaCard";
+import { approvalConnection } from "../lib/interaction";
 import { profileActivity } from "../lib/dock";
 import { summaryWindow } from "../lib/summary";
 import { resetLabel } from "../lib/format";
@@ -157,6 +158,17 @@ export function DockDetails({
         <span className="hud-state-dot" />
         {activityLabel}
       </div>
+      <p className="hud-approval-connection">
+        {t(
+          approvalConnection(current.profile.id, sessions) === "connected"
+            ? "approvalConnected"
+            : approvalConnection(current.profile.id, sessions) === "history"
+              ? "approvalHistoryOnly"
+              : approvalConnection(current.profile.id, sessions) === "terminal"
+                ? "approvalInTerminal"
+                : "approvalNoSession",
+        )}
+      </p>
       {requests.length ? (
         <div className="dock-approval-list">
           {requests.map((request) => (

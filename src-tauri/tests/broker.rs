@@ -85,3 +85,64 @@ fn resolved_wire_cancels_exact_request_without_cross_session_collision() {
     assert!(b.respond("a", reply("allow")).is_err());
     assert!(b.respond("b", reply("deny")).is_ok());
 }
+
+#[tokio::test]
+async fn unanswered_question_is_preserved_until_a_complete_reply_arrives() {
+    use agent_orbit::model::Question;
+    let broker = Broker::default();
+    let mut r = request("q", "session");
+    r.kind = "question".into();
+    r.questions = vec![Question {
+        id: "name".into(),
+        title: "Name?".into(),
+        multiple: false,
+        options: vec![],
+    }];
+    let receiver = broker.insert(r);
+    assert!(broker
+        .respond(
+            "q",
+            Reply {
+                choice: None,
+                answers: Default::default()
+            }
+        )
+        .is_err());
+    assert_eq!(broker.list().len(), 1);
+    let answers = std::collections::HashMap::from([("name".into(), vec!["中文回答".into()])]);
+    broker
+        .respond(
+            "q",
+            Reply {
+                choice: None,
+                answers,
+            },
+        )
+        .unwrap();
+    assert_eq!(receiver.await.unwrap().answers["name"], ["中文回答"]);
+}
+#[test]
+fn blank_or_multiple_answers_cannot_consume_a_single_answer_question() {
+    use agent_orbit::model::Question;
+    let broker = Broker::default();
+    let mut r = request("q", "session");
+    r.questions = vec![Question {
+        id: "name".into(),
+        title: "Name?".into(),
+        multiple: false,
+        options: vec![],
+    }];
+    let _receiver = broker.insert(r);
+    for values in [vec!["  ".into()], vec!["a".into(), "b".into()]] {
+        assert!(broker
+            .respond(
+                "q",
+                Reply {
+                    choice: None,
+                    answers: std::collections::HashMap::from([("name".into(), values)])
+                }
+            )
+            .is_err());
+    }
+    assert_eq!(broker.list().len(), 1);
+}
