@@ -14,6 +14,8 @@ pub struct Runtime {
     pub broker: Arc<Broker>,
     pub events: broadcast::Sender<AppEvent>,
     pub bridge_url: RwLock<String>,
+    pub dispatcher_gate: Mutex<()>,
+    pub dispatcher_nonces: Mutex<std::collections::HashMap<String, std::time::Instant>>,
     refreshing: Mutex<HashSet<String>>,
     external_cache: Mutex<Option<(std::time::Instant, Vec<SessionInfo>)>>,
     pub usage_lock: Mutex<()>,
@@ -23,6 +25,9 @@ impl Runtime {
     pub fn new() -> Result<Arc<Self>> {
         let config = crate::config::load()?;
         let data_dir = crate::config::data_dir()?;
+        Self::open(config, data_dir)
+    }
+    pub fn open(config: Config, data_dir: std::path::PathBuf) -> Result<Arc<Self>> {
         let store = Store::open(&data_dir.join("orbit.db"), &config)?;
         let settings = store.load_settings(&config.settings)?;
         crate::config::validate_settings(&settings)?;
@@ -37,6 +42,8 @@ impl Runtime {
             broker,
             events,
             bridge_url: RwLock::new(String::new()),
+            dispatcher_gate: Mutex::new(()),
+            dispatcher_nonces: Mutex::new(std::collections::HashMap::new()),
             refreshing: Mutex::new(HashSet::new()),
             external_cache: Mutex::new(None),
             usage_lock: Mutex::new(()),
@@ -121,11 +128,13 @@ impl Runtime {
             *cache = Some((std::time::Instant::now(), rows));
         }
         if let Some((_, rows)) = cache.as_ref() {
-            sessions.extend(rows.clone());
+            let connected: HashSet<_> = sessions.iter().map(|s| s.id.clone()).collect();
+            sessions.extend(rows.iter().filter(|s| !connected.contains(&s.id)).cloned());
         }
         drop(cache);
         sessions.sort_by_key(|s| std::cmp::Reverse(s.updated_at));
         Ok(Dashboard {
+            codex_hooks: crate::codex_dispatcher::coverage(self),
             agents,
             settings,
             sessions,
@@ -159,6 +168,7 @@ impl Runtime {
         result
     }
     pub fn save_profile(&self, mut p: Profile) -> Result<()> {
+        let _guard = self.dispatcher_gate.lock().unwrap();
         ensure!(
             self.config.providers.iter().any(|v| v.id == p.provider_id),
             "Unknown agent"
@@ -176,6 +186,21 @@ impl Runtime {
             "Enter an account label"
         );
         self.store.save_profile(&p)?;
+        for registration in self.store.dispatchers()? {
+            if registration.profile.id == p.id
+                && serde_json::to_value(&registration.profile)? != serde_json::to_value(&p)?
+            {
+                crate::codex_dispatcher::disable_locked(self, &p.id)?;
+            }
+        }
+        for session in self.sessions.list() {
+            if session.mode == "hook"
+                && session.profile_id == p.id
+                && !self.sessions.profile_matches(&session.id, &p)
+            {
+                let _ = self.sessions.stop(&session.id);
+            }
+        }
         *self.external_cache.lock().unwrap() = None;
         self.emit("dashboard");
         Ok(())

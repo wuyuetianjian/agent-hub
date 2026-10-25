@@ -6,6 +6,9 @@
 
 - 14 个 Agent 入口及离线图标；点击图标查看账号和全部额度周期。
 - 侧边设置：在设置中切换左侧/右侧；`dockSize`、`dockHoverSize`、`dockGap`、`dockPadding`、`dockPanelWidth`、`dockEdgeInset`、`dockHoverDelayMs`、`dockChromeHeight`、`dockPopupHeight` 可通过设置配置覆盖。
+- Codex 全窗口审批：在任一已有会话详情选择“接入所有 Codex 窗口”，执行生成的用户级 Hook 安装命令，并在原客户端审查信任。统一入口覆盖同一 Codex 配置目录下不同项目的已有及新开窗口，按原会话分别显示 reason、命令动作和“允许一次／拒绝”，并发请求互不影响；原对话不迁移。
+- 每个独立 `CODEX_HOME` 需要安装一次；多账号须配置不同目录，归属不明确时保留原客户端审批。只支持会加载受信任本地 `PermissionRequest` Hook 的客户端，不能保证不支持该事件的窗口接入。安装状态与每个会话收到回调的状态分别显示，不能以安装或模拟测试代替真实验证。
+- 全窗口绑定保存在 SQLite；Orbit 重启后更新私有连接信息，无需改变受信任的 Hook 命令。安装器备份配置、保留无关 Hook、迁移已知旧 Orbit 项目 Hook。可暂停所有窗口审批，或单独断开一个会话；断开的会话重启后仍暂停，显式重新接入才恢复。账号配置变更撤销连接和待审批请求。退出 Orbit 后保留原客户端审批，不改变沙箱、原审批策略或持久命令规则。真实 CLI／桌面客户端接入仍待验证，GitHub 发布保持暂停。
 - v0.1.11：审批卡仅展示审批原因与命令／操作，不再显示原始 JSON；浮窗及确认中心共用此显示。未提供原因时明确提示。
 - v0.1.10：后台悬浮栏使用原生鼠标检测补足悬停事件，移入圆圈直接显示完整详情，普通点击不再隐式固定；浮窗新增当前账号 Token 时间轴，支持今日按小时及 7 天、30 天、自定义范围。
 - v0.1.9：待审批请求由原生窗口层直接展开对应 AI 圆圈旁的确认面板，主窗口关闭到后台时仍可操作；处理完成后清除角标。
@@ -59,6 +62,9 @@ A desktop agent quota companion built with Tauri 2, React, Rust and SQLite. It i
 
 - Fourteen agent entries with offline icons; click an icon for account details and all quota windows.
 - Dock configuration: choose left/right in Settings; override `dockSize`, `dockHoverSize`, `dockGap`, `dockPadding`, `dockPanelWidth`, `dockEdgeInset`, `dockHoverDelayMs`, `dockChromeHeight` and `dockPopupHeight` through settings configuration.
+- All-window Codex approvals: choose “Connect all Codex windows” from any existing session, run the generated user-level hook installer, then review/trust it in the original client. One dispatcher covers existing and new windows across projects sharing that Codex home. Each request displays its original session/project, reason, action and one-time allow/deny choices; concurrent requests stay isolated and conversations remain in their original clients.
+- Install once per distinct `CODEX_HOME`. Separate account profiles need distinct homes; ambiguous ownership falls back to the original approval UI. Clients must support and load trusted local `PermissionRequest` hooks; unsupported clients cannot be connected by this hook. Installation coverage is shown separately from each session's actual callback status. Neither installation nor synthetic tests prove real client integration.
+- Registrations live in SQLite. Orbit refreshes private listener descriptors on restart without changing the trusted hook command. Installation backs up existing configuration, preserves unrelated hooks and migrates known old Orbit project handlers. Pause all windows or disconnect one session; session disconnects persist across restarts until explicitly reconnected. Account edits revoke connections and pending approvals. When Orbit is offline, the original client retains approval control. Sandbox policy and persistent command rules remain unchanged. Genuine CLI/desktop client integration still needs verification; GitHub publication remains on hold.
 - v0.1.11: Approval cards show only the reason and command/action instead of raw JSON, in both floating panels and the approval center. Missing reasons are identified explicitly.
 - v0.1.10: Native cursor sampling supports hover on inactive floating windows. Entering a circle opens full details, and ordinary clicks no longer pin implicitly. Floating details include the selected account’s token timeline with hourly Today and 7-day, 30-day, and custom ranges.
 - v0.1.9: New approval requests open the corresponding AI circle’s independent confirmation panel from the native window layer, including while the workspace is hidden. Resolving a request clears its badge.

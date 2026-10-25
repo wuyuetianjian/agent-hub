@@ -16,8 +16,17 @@ use std::sync::Arc;
 pub async fn serve(runtime: Arc<Runtime>) -> Result<()> {
     let listener = tokio::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0)).await?;
     *runtime.bridge_url.write().unwrap() = format!("http://{}", listener.local_addr()?);
+    crate::codex_dispatcher::restore(&runtime)?;
     let router = Router::new()
         .route("/claude/{session}/{kind}", post(hook))
+        .route(
+            "/codex-dispatch/{profile}/permission",
+            post(crate::codex_dispatcher::receive),
+        )
+        .route(
+            "/codex/{session}/permission",
+            post(crate::codex_hook::receive),
+        )
         .layer(DefaultBodyLimit::max(2 * 1024 * 1024))
         .with_state(runtime);
     tokio::spawn(async move {

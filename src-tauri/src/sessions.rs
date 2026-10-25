@@ -102,7 +102,75 @@ impl Sessions {
             return None;
         }
         let info = e.info.lock().unwrap().clone();
-        (info.status == "running").then_some(info)
+        (info.status == "running"
+            || (info.mode == "hook"
+                && ["hook-pending", "hook-connected"].contains(&info.status.as_str())))
+        .then_some(info)
+    }
+    pub fn attach_codex_hook(
+        &self,
+        profile: &Profile,
+        mut info: SessionInfo,
+        settings: &Settings,
+    ) -> Result<(SessionInfo, String)> {
+        ensure!(
+            profile.provider_id == "codex"
+                && info.provider_id == "codex"
+                && profile.id == info.profile_id,
+            "Invalid Codex account binding"
+        );
+        let thread = info.id.rsplit(':').next().unwrap_or("");
+        uuid::Uuid::parse_str(thread)?;
+        ensure!(
+            info.id == format!("external:{}:{}", profile.id, thread),
+            "Invalid existing session identifier"
+        );
+        info.cwd = std::fs::canonicalize(&info.cwd)?
+            .to_string_lossy()
+            .into_owned();
+        let mut entries = self.entries.lock().unwrap();
+        ensure!(
+            !entries
+                .get(&info.id)
+                .is_some_and(|e| e.info.lock().unwrap().status != "exited"),
+            "This session already has an active connection"
+        );
+        info.mode = "hook".into();
+        info.status = "hook-pending".into();
+        info.interaction_channel = "codex-hook".into();
+        info.read_only = false;
+        let token = uuid::Uuid::new_v4().to_string();
+        let entry = Arc::new(Entry {
+            profile: profile.clone(),
+            info: Mutex::new(info.clone()),
+            transport: Mutex::new(None),
+            output: Mutex::new((vec![], 0)),
+            token: token.clone(),
+            max_output: settings.max_output_bytes,
+        });
+        entries.insert(info.id.clone(), entry);
+        drop(entries);
+        self.changed();
+        Ok((info, token))
+    }
+    pub(crate) fn hook_secret(&self, id: &str) -> Option<String> {
+        let entry = self.entry(id).ok()?;
+        let info = entry.info.lock().unwrap();
+        (info.mode == "hook" && ["hook-pending", "hook-connected"].contains(&info.status.as_str()))
+            .then(|| entry.token.clone())
+    }
+    pub fn hook_connected(&self, id: &str) -> Result<()> {
+        let entry = self.entry(id)?;
+        let mut info = entry.info.lock().unwrap();
+        ensure!(
+            info.mode == "hook" && info.status != "exited",
+            "Hook disconnected"
+        );
+        info.status = "hook-connected".into();
+        info.updated_at = chrono::Utc::now().timestamp();
+        drop(info);
+        self.changed();
+        Ok(())
     }
     fn finished(&self, e: &Entry) {
         let id = {

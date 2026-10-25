@@ -42,6 +42,31 @@ async fn get_dashboard(runtime: State<'_, Arc<Runtime>>) -> CommandResult<Dashbo
 }
 
 #[tauri::command]
+async fn prepare_codex_hook(
+    runtime: State<'_, Arc<Runtime>>,
+    session_id: String,
+) -> CommandResult<crate::codex_dispatcher::Setup> {
+    let runtime = runtime.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let info = runtime
+            .dashboard()
+            .map_err(error)?
+            .sessions
+            .into_iter()
+            .find(|s| {
+                s.id == session_id && s.provider_id == "codex" && (s.read_only || s.mode == "hook")
+            })
+            .ok_or("Select an existing Codex session")?;
+        let executable = std::env::current_exe().map_err(error)?;
+        let setup = crate::codex_dispatcher::prepare(&runtime, &info.profile_id, &executable)
+            .map_err(error)?;
+        crate::codex_dispatcher::reconnect_session(&runtime, info).map_err(error)?;
+        Ok(setup)
+    })
+    .await
+    .map_err(error)?
+}
+#[tauri::command]
 async fn get_usage(
     runtime: State<'_, Arc<Runtime>>,
     intervals: Vec<crate::usage::Interval>,
@@ -179,7 +204,20 @@ fn session_replay(
 }
 #[tauri::command]
 fn stop_session(runtime: State<'_, Arc<Runtime>>, session_id: String) -> CommandResult<()> {
-    runtime.sessions.stop(&session_id).map_err(error)
+    if runtime
+        .sessions
+        .list()
+        .iter()
+        .any(|s| s.id == session_id && s.mode == "hook")
+    {
+        crate::codex_dispatcher::disconnect_session(&runtime, &session_id).map_err(error)
+    } else {
+        runtime.sessions.stop(&session_id).map_err(error)
+    }
+}
+#[tauri::command]
+fn disable_codex_hooks(runtime: State<'_, Arc<Runtime>>, profile_id: String) -> CommandResult<()> {
+    crate::codex_dispatcher::disable(&runtime, &profile_id).map_err(error)
 }
 #[tauri::command]
 fn respond(
@@ -924,6 +962,8 @@ pub fn run() {
         .plugin(tauri_plugin_autostart::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             get_dashboard,
+            prepare_codex_hook,
+            disable_codex_hooks,
             get_usage,
             refresh_profile,
             save_profile,

@@ -66,7 +66,12 @@ export function ApprovalCard({
       <div className="approval-context">
         <strong>{request.profileLabel}</strong>
         <span title={request.cwd}>{request.cwd}</span>
-        <small>{request.sessionId.slice(0, 8)}</small>
+        <small title={request.sessionId}>
+          {(request.sessionId.split(":").at(-1) || request.sessionId).slice(
+            0,
+            8,
+          )}
+        </small>
       </div>
       <div className="approval-readable-content">
         <p className="approval-reason">

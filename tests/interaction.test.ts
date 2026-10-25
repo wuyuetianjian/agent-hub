@@ -39,3 +39,22 @@ test("approval connectivity distinguishes managed channels from terminal and ext
     "history",
   );
 });
+
+test("existing-session hook is connected only after a genuine hook arrives", () => {
+  const session = {
+    profileId: "codex",
+    readOnly: false,
+    mode: "hook",
+    status: "hook-pending",
+    interactionChannel: "codex-hook",
+  } as SessionInfo;
+  assert.equal(approvalConnection("codex", [session]), "pending");
+  assert.equal(
+    approvalConnection("codex", [{ ...session, status: "hook-connected" }]),
+    "connected",
+  );
+  assert.equal(
+    approvalConnection("codex", [{ ...session, status: "exited" }]),
+    "none",
+  );
+});
