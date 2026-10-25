@@ -1,0 +1,113 @@
+name: macOS Release
+
+on:
+  push:
+    branches:
+      - 'release/v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: startsWith(github.ref, 'refs/heads/release/v')
+    runs-on: macos-15-intel
+    timeout-minutes: 60
+    env:
+      CARGO_HOME: ${{ github.workspace }}/.cache/cargo
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - name: Validate release version
+        shell: bash
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          [[ "$GITHUB_REF_NAME" == "release/v$version" ]]
+          echo "RELEASE_VERSION=$version" >> "$GITHUB_ENV"
+          echo "RELEASE_TAG=v$version" >> "$GITHUB_ENV"
+          test -f ".github/release-notes/v$version.md"
+          python3 - <<'PY'
+          import json, pathlib, tomllib
+          root = pathlib.Path('.')
+          version = json.loads((root / 'package.json').read_text())['version']
+          lock = json.loads((root / 'package-lock.json').read_text())
+          assert lock['version'] == lock['packages']['']['version'] == version
+          assert json.loads((root / 'src-tauri/tauri.conf.json').read_text())['version'] == version
+          assert json.loads((root / 'config/defaults.json').read_text())['version'] == version
+          assert tomllib.loads((root / 'src-tauri/Cargo.toml').read_text())['package']['version'] == version
+          assert next(p['version'] for p in tomllib.loads((root / 'src-tauri/Cargo.lock').read_text())['package'] if p['name'] == 'agent-orbit') == version
+          PY
+      - run: npm ci
+      - run: npm test
+      - run: cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check
+      - run: cargo test --manifest-path src-tauri/Cargo.toml --locked --no-default-features
+      - run: npm run desktop:build -- --bundles app
+      - name: Package and verify macOS Intel archive
+        shell: bash
+        run: |
+          test "$(uname -m)" = x86_64
+          product="$(node -p "require('./src-tauri/tauri.conf.json').productName")"
+          app="src-tauri/target/release/bundle/macos/$product.app"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/Contents/Info.plist")" = "$RELEASE_VERSION"
+          archive="Agent-Orbit-$RELEASE_VERSION-macOS-x64.zip"
+          mkdir -p artifacts
+          ditto -c -k --sequesterRsrc --keepParent "$app" "artifacts/$archive"
+          python3 - <<'PY'
+          import hashlib, os, pathlib, zipfile
+          root = pathlib.Path('artifacts')
+          archive = root / f"Agent-Orbit-{os.environ['RELEASE_VERSION']}-macOS-x64.zip"
+          with zipfile.ZipFile(archive) as z:
+              assert z.testzip() is None
+              assert any(n.endswith('/Contents/MacOS/agent-orbit') for n in z.namelist())
+              assert not any('/codex-hooks/' in n or '/codex-dispatchers/' in n or n.endswith('orbit.db') for n in z.namelist())
+          (root / 'SHA256SUMS.txt').write_text(hashlib.sha256(archive.read_bytes()).hexdigest() + '  ' + archive.name + '\n')
+          PY
+          cat artifacts/SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macOS-Intel-release
+          path: |
+            artifacts/*.zip
+            artifacts/SHA256SUMS.txt
+          if-no-files-found: error
+      - name: Create draft, upload, verify and publish
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "Release already exists; refusing to replace it."
+            exit 1
+          fi
+          if git ls-remote --exit-code --tags origin "refs/tags/$RELEASE_TAG"; then
+            echo "Tag already exists; refusing to publish different source."
+            exit 1
+          else
+            test "$?" = 2
+          fi
+          notes="$RUNNER_TEMP/release-notes.md"
+          cp ".github/release-notes/$RELEASE_TAG.md" "$notes"
+          printf '\nSource commit: %s\n' "$GITHUB_SHA" >> "$notes"
+          git tag "$RELEASE_TAG" "$GITHUB_SHA"
+          git push origin "refs/tags/$RELEASE_TAG"
+          gh release create "$RELEASE_TAG" --verify-tag --title "Agent Orbit $RELEASE_TAG" --notes-file "$notes" --draft
+          gh release upload "$RELEASE_TAG" "artifacts/Agent-Orbit-$RELEASE_VERSION-macOS-x64.zip" artifacts/SHA256SUMS.txt
+          test "$(gh release view "$RELEASE_TAG" --json assets --jq '.assets | length')" = 2
+          verify="$RUNNER_TEMP/release-verify"
+          gh release download "$RELEASE_TAG" --dir "$verify" --pattern "Agent-Orbit-$RELEASE_VERSION-macOS-x64.zip" --pattern SHA256SUMS.txt
+          (cd "$verify" && shasum -a 256 -c SHA256SUMS.txt)
+          gh release edit "$RELEASE_TAG" --draft=false --latest
+          gh release view "$RELEASE_TAG" --json url,tagName,isDraft,assets

@@ -4,7 +4,9 @@
 
 ### v0.0.1 发布
 
-本次发布将当前开发快照统一标记为 v0.0.1，提供 macOS Intel（x86_64）应用 ZIP 和 SHA-256 校验文件。解压后将 Agent Orbit.app 移入 Applications。此构建未使用 Apple Developer 证书签名或公证；已有 Codex 客户端 Hook 的真实联调仍待验收。
+Windows CLI 启动测试按路径语义比较 Node 入口，兼容正反斜杠分隔符；无界面 PTY 测试模拟 ConPTY 启动所需的光标位置回复。
+
+本次发布将当前开发快照统一标记为 v0.0.1，提供 macOS Intel（x86_64）应用 ZIP 和 SHA-256 校验文件。解压后将 Agent Orbit.app 移入 Applications。此构建未使用 Apple Developer 证书签名或公证；已有 Codex 客户端 Hook 的真实联调仍待验收。`release/v*` 分支推送会运行 macOS Release 工作流，校验、构建并上传 ZIP 与校验文件后发布对应版本。
 
 跨平台桌面 Agent 额度与 Token 用量悬浮工具，使用 Tauri 2、React、Rust 和 SQLite。提供普通悬浮窗、macOS 可选灵动岛样式、账号详情、交互终端和确认中心。
 
@@ -64,7 +66,9 @@ Claude Code、Codex、Gemini CLI、Google Antigravity、Cursor、GitHub Copilot�
 
 ### v0.0.1 release
 
-This release labels the current development snapshot v0.0.1 and provides a macOS Intel (x86_64) application ZIP and SHA-256 checksums. Extract and move Agent Orbit.app into Applications. The build is not signed with an Apple Developer certificate or notarized; live integration of the existing Codex client hook remains unverified.
+Windows CLI launcher tests compare Node entry points as paths, accepting equivalent slash and backslash separators. Headless PTY tests answer the cursor-position query required by ConPTY startup.
+
+This release labels the current development snapshot v0.0.1 and provides a macOS Intel (x86_64) application ZIP and SHA-256 checksums. Extract and move Agent Orbit.app into Applications. The build is not signed with an Apple Developer certificate or notarized; live integration of the existing Codex client hook remains unverified. Pushes to `release/v*` branches run the macOS Release workflow, which validates, builds and uploads the ZIP and checksum before publishing the matching version.
 
 A desktop agent quota companion built with Tauri 2, React, Rust and SQLite. It includes a floating widget, an optional macOS Dynamic Island-style layout, account details, interactive terminals and an approval inbox.
 
