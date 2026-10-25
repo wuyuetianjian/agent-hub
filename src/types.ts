@@ -24,6 +24,7 @@ export interface Settings {
   compact: boolean;
   dockSide: "left" | "right";
   dockSize: number;
+  dockHoverSize: number;
   dockGap: number;
   dockPadding: number;
   dockPanelWidth: number;

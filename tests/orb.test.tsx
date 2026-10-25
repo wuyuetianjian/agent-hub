@@ -3,6 +3,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { renderToStaticMarkup } from "react-dom/server";
 import { QuotaOrb } from "../src/components/QuotaOrb";
+import { SettingsPanel } from "../src/components/SettingsPanel";
 import { AgentDock } from "../src/components/AgentDock";
 import { translator } from "../src/i18n";
 import defaults from "../config/defaults.json";
@@ -167,4 +168,23 @@ test("question text is restored from its request draft after switching views", (
     />,
   );
   assert.ok(html.includes('value="Partly written answer"'));
+});
+
+test("dock settings expose separate resting and hover size controls", () => {
+  const html = renderToStaticMarkup(
+    <SettingsPanel
+      data={{
+        settings,
+        platform: "macos",
+        agents: [agent(75)],
+        sessions: [],
+        interactions: [],
+      }}
+      t={translator("en")}
+      onSave={async () => {}}
+    />,
+  );
+  assert.match(html, /aria-label="Resting size"/);
+  assert.match(html, /aria-label="Hover size"/);
+  assert.match(html, /Changes apply immediately/);
 });

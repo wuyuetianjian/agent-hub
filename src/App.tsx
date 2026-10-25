@@ -20,6 +20,7 @@ import {
   Search,
   CheckCircle2,
 } from "lucide-react";
+import { listen } from "@tauri-apps/api/event";
 import { call, isDesktop, onEvent, openUrl } from "./api";
 import type {
   AgentView,
@@ -42,16 +43,20 @@ import { summaryWindow } from "./lib/summary";
 const Terminal = lazy(() =>
   import("./components/Terminal").then((m) => ({ default: m.Terminal })),
 );
+const workspaceWindow = new URLSearchParams(window.location.search).has(
+  "workspace",
+);
 type Page = "overview" | "agents" | "sessions" | "approvals" | "settings";
 export default function App() {
   const [data, setData] = useState<Dashboard | null>(null);
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(workspaceWindow);
   const [approvalDrafts, setApprovalDrafts] = useState<
     Record<string, ApprovalDraft>
   >({});
   const updateApprovalDraft = (id: string, draft: ApprovalDraft) =>
     setApprovalDrafts((current) => ({ ...current, [id]: draft }));
   const [dockOpen, setDockOpen] = useState(false);
+  const [dockHovered, setDockHovered] = useState(false);
   const [page, setPage] = useState<Page>("overview");
   const [selected, setSelected] = useState<string | null>(null);
   const [busy, setBusy] = useState<string[]>([]);
@@ -98,6 +103,27 @@ export default function App() {
       clearInterval(timer);
     };
   }, [load]);
+  useEffect(() => {
+    if (!isDesktop || !workspaceWindow) return;
+    let disposed = false;
+    let off: (() => void) | undefined;
+    void listen<{ page: Page; profileId?: string; sessionId?: string }>(
+      "orbit:navigate",
+      (event) => {
+        setPage(event.payload.page);
+        setSelected(event.payload.profileId ?? null);
+        setSession(event.payload.sessionId ?? null);
+        setExpanded(true);
+      },
+    ).then((fn) => {
+      if (disposed) fn();
+      else off = fn;
+    });
+    return () => {
+      disposed = true;
+      off?.();
+    };
+  }, []);
   const mode = data?.settings.windowMode;
   const compact = data?.settings.compact;
   const island = mode === "island" && !expanded;
@@ -120,12 +146,15 @@ export default function App() {
         ? "dockDetail"
         : "dock";
   useEffect(() => {
-    if (data)
-      void call("set_window_view", { view: nativeView }).catch((e) =>
-        setError(String(e)),
-      );
+    if (data && !workspaceWindow)
+      void call("set_window_view", {
+        view: nativeView,
+        hovered: dockHovered,
+      }).catch((e) => setError(String(e)));
   }, [
     nativeView,
+    dockHovered,
+    data?.settings.dockHoverSize,
     mode,
     compact,
     dockCount,
@@ -144,8 +173,12 @@ export default function App() {
       }
       if ((e.metaKey || e.ctrlKey) && e.key === ",") {
         e.preventDefault();
-        setExpanded(true);
-        setPage("settings");
+        if (isDesktop && !workspaceWindow)
+          void call("open_workspace", { page: "settings" });
+        else {
+          setExpanded(true);
+          setPage("settings");
+        }
       }
     };
     window.addEventListener("keydown", fn);
@@ -164,11 +197,6 @@ export default function App() {
   }
   async function saveSettings(s: Settings) {
     await call("save_settings", { settings: s });
-    if (s.windowMode !== data?.settings.windowMode) {
-      setExpanded(false);
-      setSelected(null);
-      setPage("overview");
-    }
     await load();
   }
   async function saveProfile(profile: Profile) {
@@ -181,10 +209,14 @@ export default function App() {
       cwd,
       mode,
     });
-    setSession(created.id);
-    setExpanded(true);
-    setSelected(null);
-    setPage("sessions");
+    if (isDesktop && !workspaceWindow) {
+      await call("open_workspace", { page: "sessions", sessionId: created.id });
+    } else {
+      setSession(created.id);
+      setExpanded(true);
+      setSelected(null);
+      setPage("sessions");
+    }
     await load();
   }
   if (!data)
@@ -206,6 +238,7 @@ export default function App() {
   const chosen = data.agents.find((a) => a.profile.id === selected);
   const currentSession =
     data.sessions.find((s) => s.id === session) ||
+    data.sessions.find((s) => s.profileId === selected) ||
     data.sessions.find((s) => s.status === "running") ||
     data.sessions[0];
   const configured = data.agents.find((a) => a.profile.id === configure?.id);
@@ -221,7 +254,14 @@ export default function App() {
         ? "dark"
         : "light"
       : data.settings.theme;
-  function openPage(p: Page) {
+  function openPage(p: Page, profileId?: string, sessionId?: string) {
+    if (isDesktop && !workspaceWindow) {
+      void call("open_workspace", { page: p, profileId, sessionId }).catch(
+        (e) => setError(String(e)),
+      );
+      return;
+    }
+    if (sessionId !== undefined) setSession(sessionId);
     setExpanded(true);
     setPage(p);
     setSelected(null);
@@ -234,8 +274,7 @@ export default function App() {
       busy={busy.includes(agent.profile.id)}
       sessions={data.sessions.filter((s) => s.profileId === agent.profile.id)}
       onSession={(id) => {
-        setSession(id);
-        openPage("sessions");
+        openPage("sessions", undefined, id);
       }}
       onBack={() => setSelected(null)}
       onRefresh={() => void refresh(agent.profile.id)}
@@ -287,18 +326,19 @@ export default function App() {
           t={t}
           busy={busy}
           onPanelChange={setDockOpen}
-          onRefresh={(id) => void refresh(id)}
-          onDetails={(id) => {
-            setExpanded(true);
-            setPage("agents");
-            setSelected(id);
+          onHoverChange={setDockHovered}
+          onDrag={() => {
+            void call("drag_dock").catch((e) => setError(String(e)));
           }}
+          onRefresh={(id) => void refresh(id)}
+          onDetails={(id) => openPage("agents", id)}
           onSettings={() => openPage("settings")}
           onSessions={(id) => {
-            setSession(
-              data.sessions.find((s) => s.profileId === id)?.id || null,
+            openPage(
+              "sessions",
+              id,
+              data.sessions.find((s) => s.profileId === id)?.id,
             );
-            openPage("sessions");
           }}
           onRespond={async (id, reply) => {
             await call("respond", { requestId: id, reply });
@@ -407,6 +447,10 @@ export default function App() {
                     className="icon-button"
                     title={expanded ? t("collapse") : t("expand")}
                     onClick={() => {
+                      if (workspaceWindow) {
+                        void call("hide_window");
+                        return;
+                      }
                       setExpanded(!expanded);
                       setSelected(null);
                     }}

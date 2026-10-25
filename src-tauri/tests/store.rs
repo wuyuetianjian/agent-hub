@@ -56,3 +56,43 @@ fn old_account_cannot_write_after_profile_changed() {
         .is_err());
     assert!(s.snapshot(&old.id).unwrap().is_none());
 }
+#[test]
+fn legacy_dock_defaults_migrate_without_losing_other_preferences() {
+    let t = tempfile::tempdir().unwrap();
+    let cfg = config::load().unwrap();
+    let path = t.path().join("legacy.db");
+    let store = Store::open(&path, &cfg).unwrap();
+    let db = rusqlite::Connection::open(&path).unwrap();
+    db.execute(
+        "INSERT INTO settings(id,value) VALUES(1,?1)",
+        [r#"{"dockSize":60,"locale":"en","dockSide":"left"}"#],
+    )
+    .unwrap();
+    let settings = store.load_settings(&cfg.settings).unwrap();
+    assert_eq!(settings.dock_size, cfg.settings.dock_size);
+    assert!(settings.dock_hover_size >= settings.dock_size);
+    assert_eq!(settings.locale, "en");
+    assert_eq!(settings.dock_side, "left");
+    db.execute(
+        "UPDATE settings SET value=?1 WHERE id=1",
+        [r#"{"dockSize":80}"#],
+    )
+    .unwrap();
+    let custom = store.load_settings(&cfg.settings).unwrap();
+    assert_eq!(custom.dock_size, 80.0);
+    assert_eq!(custom.dock_hover_size, 80.0);
+}
+#[test]
+fn dock_sizes_are_persisted_and_invalid_hover_size_is_rejected() {
+    let t = tempfile::tempdir().unwrap();
+    let cfg = config::load().unwrap();
+    let store = Store::open(&t.path().join("sizes.db"), &cfg).unwrap();
+    let mut settings = cfg.settings.clone();
+    settings.dock_size = 28.0;
+    settings.dock_hover_size = 48.0;
+    store.save_settings(&settings).unwrap();
+    let loaded = store.load_settings(&cfg.settings).unwrap();
+    assert_eq!((loaded.dock_size, loaded.dock_hover_size), (28.0, 48.0));
+    settings.dock_hover_size = 20.0;
+    assert!(store.save_settings(&settings).is_err());
+}

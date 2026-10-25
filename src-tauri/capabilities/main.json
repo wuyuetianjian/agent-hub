@@ -1,1 +1,14 @@
-{"identifier":"main-capability","description":"Local widget window and user-selected dialogs","windows":["main"],"permissions":["core:default","core:window:allow-start-dragging","dialog:allow-open","opener:allow-open-url"]}
+{
+  "identifier": "main-capability",
+  "description": "Local widget window and user-selected dialogs",
+  "windows": [
+    "main",
+    "workspace"
+  ],
+  "permissions": [
+    "core:default",
+    "core:window:allow-start-dragging",
+    "dialog:allow-open",
+    "opener:allow-open-url"
+  ]
+}

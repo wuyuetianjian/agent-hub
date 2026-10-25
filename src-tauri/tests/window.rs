@@ -80,3 +80,15 @@ fn dragged_dock_height_survives_hover_expansion() {
     assert_eq!(a.y, 40.0);
     assert_eq!(b.y, 40.0);
 }
+#[test]
+fn drag_snaps_to_closest_edge_of_offset_monitor() {
+    use agent_orbit::window_state::nearest_dock_side;
+    let d = Bounds {
+        x: 1440.0,
+        y: 0.0,
+        width: 1920.0,
+        height: 1080.0,
+    };
+    assert_eq!(nearest_dock_side(d, 1500.0, 52.0), "left");
+    assert_eq!(nearest_dock_side(d, 3200.0, 52.0), "right");
+}

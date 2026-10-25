@@ -44,7 +44,19 @@ impl Store {
             .optional()?;
         let mut value = serde_json::to_value(defaults)?;
         if let Some(s) = saved {
-            crate::config::merge(&mut value, serde_json::from_str(&s)?);
+            let mut saved: serde_json::Value = serde_json::from_str(&s)?;
+            // v0.1.2 had a single 60px default and no resting/hover distinction.
+            if saved.get("dockHoverSize").is_none() {
+                if saved.get("dockSize").and_then(|size| size.as_f64()) == Some(60.0) {
+                    saved["dockSize"] = defaults.dock_size.into();
+                }
+                let size = saved
+                    .get("dockSize")
+                    .and_then(|size| size.as_f64())
+                    .unwrap_or(defaults.dock_size);
+                saved["dockHoverSize"] = defaults.dock_hover_size.max(size).into();
+            }
+            crate::config::merge(&mut value, saved);
         }
         Ok(serde_json::from_value(value)?)
     }

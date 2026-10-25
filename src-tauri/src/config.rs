@@ -67,7 +67,9 @@ pub fn validate_settings(s: &crate::model::Settings) -> Result<()> {
         bail!("Invalid terminal output limit");
     }
     if !["left", "right"].contains(&s.dock_side.as_str())
-        || !(36.0..=96.0).contains(&s.dock_size)
+        || !(24.0..=96.0).contains(&s.dock_size)
+        || !(24.0..=120.0).contains(&s.dock_hover_size)
+        || s.dock_hover_size < s.dock_size
         || !(0.0..=32.0).contains(&s.dock_gap)
         || !(4.0..=32.0).contains(&s.dock_padding)
         || !(280.0..=520.0).contains(&s.dock_panel_width)

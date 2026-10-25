@@ -90,3 +90,11 @@ pub fn dock_bounds_at(
     }
     bounds
 }
+
+pub fn nearest_dock_side(display: Bounds, x: f64, rail_width: f64) -> &'static str {
+    if x + rail_width / 2.0 < display.x + display.width / 2.0 {
+        "left"
+    } else {
+        "right"
+    }
+}

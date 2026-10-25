@@ -43,6 +43,7 @@ pub struct Settings {
     pub compact: bool,
     pub dock_side: String,
     pub dock_size: f64,
+    pub dock_hover_size: f64,
     pub dock_gap: f64,
     pub dock_padding: f64,
     pub dock_panel_width: f64,

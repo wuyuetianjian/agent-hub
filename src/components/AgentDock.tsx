@@ -23,6 +23,8 @@ export function AgentDock({
   t,
   busy,
   onPanelChange,
+  onHoverChange,
+  onDrag,
   onRefresh,
   onDetails,
   onSettings,
@@ -35,6 +37,8 @@ export function AgentDock({
   t: T;
   busy: string[];
   onPanelChange: (open: boolean) => void;
+  onHoverChange?: (hovered: boolean) => void;
+  onDrag?: () => void;
   onRefresh: (id: string) => void;
   onDetails: (id: string) => void;
   onSettings: () => void;
@@ -42,6 +46,23 @@ export function AgentDock({
   onRespond: (id: string, reply: Reply) => Promise<void>;
 }) {
   const s = data.settings;
+  const [hovered, setHovered] = useState(false);
+  const size = hovered ? s.dockHoverSize : s.dockSize;
+  const hoverTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined,
+  );
+  function enterDock() {
+    clearTimeout(hoverTimer.current);
+    setHovered(true);
+    onHoverChange?.(true);
+  }
+  function leaveDock() {
+    hoverTimer.current = setTimeout(() => {
+      setHovered(false);
+      onHoverChange?.(false);
+    }, s.dockHoverDelayMs);
+  }
+  useEffect(() => () => clearTimeout(hoverTimer.current), []);
   const agents = dockAgents(
     data.agents,
     s.visibleProviders,
@@ -170,17 +191,23 @@ export function AgentDock({
     ),
   );
   const style = {
-    "--dock-size": `${s.dockSize}px`,
+    "--dock-size": `${size}px`,
     "--dock-gap": `${s.dockGap}px`,
     "--dock-padding": `${s.dockPadding}px`,
     "--dock-panel-width": `${s.dockPanelWidth}px`,
-    "--dock-rail-width": `${s.dockSize + 2 * s.dockPadding}px`,
+    "--dock-rail-width": `${size + 2 * s.dockPadding}px`,
     "--dock-chrome-height": `${s.dockChromeHeight}px`,
   } as React.CSSProperties;
   return (
     <div
       className={`agent-dock side-${s.dockSide} ${current ? "panel-open" : ""}`}
       style={style}
+      onMouseEnter={enterDock}
+      onMouseLeave={leaveDock}
+      onFocusCapture={enterDock}
+      onBlurCapture={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget)) leaveDock();
+      }}
       onKeyDown={(e) => {
         if (e.key === "Escape") {
           e.stopPropagation();
@@ -189,7 +216,12 @@ export function AgentDock({
       }}
     >
       <div className="dock-rail" ref={railRef}>
-        <div className="dock-drag-handle" data-tauri-drag-region>
+        <div
+          className="dock-drag-handle"
+          onMouseDown={(e) => {
+            if (e.button === 0) onDrag?.();
+          }}
+        >
           <GripVertical size={13} />
         </div>
         <div
@@ -202,7 +234,7 @@ export function AgentDock({
             <div key={agent.profile.id} data-profile={agent.profile.id}>
               <QuotaOrb
                 agent={agent}
-                settings={s}
+                settings={{ ...s, dockSize: size }}
                 pending={
                   requestsForProfile(agent.profile.id, data.sessions, live)
                     .length

@@ -1,6 +1,6 @@
 {
   "appName": "Agent Orbit",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "settings": {
     "locale": "zh",
     "theme": "dark",
@@ -33,14 +33,15 @@
     "externalSessionLimit": 50,
     "externalSessionRefreshSeconds": 30,
     "dockSide": "right",
-    "dockSize": 60,
+    "dockSize": 32,
     "dockGap": 10,
     "dockPadding": 10,
     "dockPanelWidth": 360,
     "dockEdgeInset": 12,
     "dockHoverDelayMs": 180,
     "dockChromeHeight": 64,
-    "dockPopupHeight": 580
+    "dockPopupHeight": 580,
+    "dockHoverSize": 44
   },
   "providers": [
     {

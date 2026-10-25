@@ -1498,8 +1498,7 @@ input[type="radio"] {
 }
 .dock-rail {
   position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
+  top: 0;
   width: var(--dock-rail-width);
   padding: var(--dock-padding);
   display: flex;
@@ -1558,7 +1557,7 @@ input[type="radio"] {
 }
 .dock-orb-core {
   position: absolute;
-  inset: 6px;
+  inset: 12%;
   background: color-mix(in srgb, var(--bg) 94%, transparent);
   border-radius: 50%;
   display: grid;
@@ -1866,4 +1865,27 @@ input[type="radio"] {
   transform: none;
   max-width: 330px;
   bottom: 10px;
+}
+
+.dock-orb .agent-icon {
+  width: 64% !important;
+  height: 64% !important;
+}
+.dock-orb .agent-icon img,
+.dock-orb .agent-icon svg {
+  width: 100%;
+  height: 100%;
+}
+.dock-orb {
+  transition:
+    width 120ms ease,
+    height 120ms ease;
+}
+.orb-percentage {
+  font-size: clamp(8px, calc(var(--dock-size) * 0.23), 12px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .dock-orb {
+    transition: none;
+  }
 }

@@ -1,12 +1,15 @@
 use crate::window_state::Bounds;
 use crate::{model::*, runtime::Runtime};
 use std::sync::{
-    atomic::{AtomicBool, Ordering},
+    atomic::{AtomicBool, AtomicU64, Ordering},
     Arc, Mutex,
 };
 #[derive(Default)]
 struct NativeState {
     tray_available: AtomicBool,
+    dragging: AtomicBool,
+    move_generation: AtomicU64,
+    hovered: AtomicBool,
     view: Mutex<Option<(String, bool)>>,
 }
 use tauri::{
@@ -62,7 +65,12 @@ fn save_settings(
             app.autolaunch().disable().map_err(error)?;
         }
     }
-    runtime.save_settings(settings).map_err(error)
+    runtime.save_settings(settings).map_err(error)?;
+    let view = app.state::<NativeState>().view.lock().unwrap().clone();
+    if let Some((view, _)) = view {
+        layout(&app, &runtime, &view)?;
+    }
+    Ok(())
 }
 #[tauri::command]
 async fn start_session(
@@ -168,8 +176,16 @@ fn layout(app: &tauri::AppHandle, runtime: &Runtime, view: &str) -> CommandResul
     if !["widget", "workspace", "detail", "dock", "dockDetail"].contains(&view) {
         return Err("Unknown window view".into());
     }
-    let window = app.get_webview_window("main").ok_or("Window unavailable")?;
-    save_geometry(app, runtime);
+    let window = app
+        .get_webview_window(if view == "workspace" {
+            "workspace"
+        } else {
+            "main"
+        })
+        .ok_or("Window unavailable")?;
+    if view != "workspace" {
+        save_geometry(app, runtime);
+    }
     let s = runtime.settings.read().unwrap().clone();
     let view = if view == "widget" && s.window_mode == "floating" {
         "dock"
@@ -194,12 +210,21 @@ fn layout(app: &tauri::AppHandle, runtime: &Runtime, view: &str) -> CommandResul
                     || pending_profiles.contains(p.id.as_str())
             })
             .count();
-        let rail_width = s.dock_size + 2.0 * s.dock_padding;
+        let size = if app.state::<NativeState>().hovered.load(Ordering::Relaxed) {
+            s.dock_hover_size
+        } else {
+            s.dock_size
+        };
+        let rail_width = size + 2.0 * s.dock_padding;
         let height = (2.0 * s.dock_padding
-            + count as f64 * s.dock_size
+            + count as f64 * size
             + count.saturating_sub(1) as f64 * s.dock_gap
             + s.dock_chrome_height)
-            .max(s.dock_popup_height);
+            .max(if view == "dockDetail" {
+                s.dock_popup_height
+            } else {
+                0.0
+            });
         let width = rail_width
             + if view == "dockDetail" {
                 s.dock_gap + s.dock_panel_width
@@ -232,7 +257,7 @@ fn layout(app: &tauri::AppHandle, runtime: &Runtime, view: &str) -> CommandResul
                     .flatten()
                     .map(|b| b.y),
             );
-            let _ = window.set_min_size(Some(LogicalSize::new(64.0, 80.0)));
+            let _ = window.set_min_size(Some(LogicalSize::new(24.0, 80.0)));
             window
                 .set_size(LogicalSize::new(bounds.width, bounds.height))
                 .map_err(error)?;
@@ -306,8 +331,14 @@ fn layout(app: &tauri::AppHandle, runtime: &Runtime, view: &str) -> CommandResul
     } else if !displays.is_empty() {
         let _ = window.set_position(LogicalPosition::new(bounds.x, bounds.y));
     }
-    let _ = window.set_always_on_top(s.always_on_top);
-    *app.state::<NativeState>().view.lock().unwrap() = Some((view.into(), island));
+    let _ = window.set_always_on_top(if view == "workspace" {
+        false
+    } else {
+        s.always_on_top
+    });
+    if view != "workspace" {
+        *app.state::<NativeState>().view.lock().unwrap() = Some((view.into(), island));
+    }
     window.show().map_err(error)?;
     Ok(())
 }
@@ -317,11 +348,28 @@ fn set_window_view(
     app: tauri::AppHandle,
     runtime: State<'_, Arc<Runtime>>,
     view: String,
+    hovered: Option<bool>,
+    window: tauri::WebviewWindow,
 ) -> CommandResult<()> {
+    if window.label() != "main" || view == "workspace" {
+        return Err("Use the independent workspace window".into());
+    }
+    if let Some(hovered) = hovered {
+        app.state::<NativeState>()
+            .hovered
+            .store(hovered, Ordering::Relaxed);
+    }
     layout(&app, &runtime, &view)
 }
 #[tauri::command]
-fn hide_window(app: tauri::AppHandle, runtime: State<'_, Arc<Runtime>>) -> CommandResult<()> {
+fn hide_window(
+    app: tauri::AppHandle,
+    runtime: State<'_, Arc<Runtime>>,
+    window: tauri::WebviewWindow,
+) -> CommandResult<()> {
+    if window.label() == "workspace" {
+        return window.hide().map_err(error);
+    }
     if !app
         .state::<NativeState>()
         .tray_available
@@ -335,6 +383,84 @@ fn hide_window(app: tauri::AppHandle, runtime: State<'_, Arc<Runtime>>) -> Comma
     }
     Ok(())
 }
+#[tauri::command]
+fn open_workspace(
+    app: tauri::AppHandle,
+    runtime: State<'_, Arc<Runtime>>,
+    page: String,
+    profile_id: Option<String>,
+    session_id: Option<String>,
+) -> CommandResult<()> {
+    layout(&app, &runtime, "workspace")?;
+    let window = app
+        .get_webview_window("workspace")
+        .ok_or("Workspace unavailable")?;
+    window
+        .emit(
+            "orbit:navigate",
+            serde_json::json!({"page":page,"profileId":profile_id,"sessionId":session_id}),
+        )
+        .map_err(error)?;
+    window.set_focus().map_err(error)
+}
+#[tauri::command]
+fn drag_dock(app: tauri::AppHandle, window: tauri::WebviewWindow) -> CommandResult<()> {
+    if window.label() != "main" {
+        return Err("Dock window required".into());
+    }
+    app.state::<NativeState>()
+        .dragging
+        .store(true, Ordering::Relaxed);
+    window.start_dragging().map_err(error)
+}
+fn snap_dock(app: &tauri::AppHandle) {
+    let Some(window) = app.get_webview_window("main") else {
+        return;
+    };
+    let runtime = app.state::<Arc<Runtime>>();
+    let (Ok(position), Ok(size), Ok(scale), Ok(Some(monitor))) = (
+        window.inner_position(),
+        window.inner_size(),
+        window.scale_factor(),
+        window.current_monitor(),
+    ) else {
+        return;
+    };
+    let monitor_scale = monitor.scale_factor();
+    let display = Bounds {
+        x: monitor.position().x as f64 / monitor_scale,
+        y: monitor.position().y as f64 / monitor_scale,
+        width: monitor.size().width as f64 / monitor_scale,
+        height: monitor.size().height as f64 / monitor_scale,
+    };
+    let mut settings = runtime.settings.read().unwrap().clone();
+    let view = app
+        .state::<NativeState>()
+        .view
+        .lock()
+        .unwrap()
+        .clone()
+        .map(|(v, _)| v)
+        .unwrap_or_else(|| "dock".into());
+    let rail = if app.state::<NativeState>().hovered.load(Ordering::Relaxed) {
+        settings.dock_hover_size
+    } else {
+        settings.dock_size
+    } + 2.0 * settings.dock_padding;
+    let width = size.width as f64 / scale;
+    let rail_x = position.x as f64 / scale
+        + if settings.dock_side == "right" {
+            width - rail
+        } else {
+            0.0
+        };
+    settings.dock_side = crate::window_state::nearest_dock_side(display, rail_x, rail).into();
+    save_geometry(app, &runtime);
+    if runtime.save_settings(settings).is_ok() {
+        let _ = layout(app, &runtime, &view);
+    }
+}
+
 #[tauri::command]
 fn quit_app(app: tauri::AppHandle, runtime: State<'_, Arc<Runtime>>) {
     save_geometry(&app, &runtime);
@@ -378,9 +504,64 @@ pub fn run() {
             stop_session,
             respond,
             set_window_view,
+            open_workspace,
+            drag_dock,
             hide_window,
             quit_app
         ])
+        .on_window_event(|window, event| {
+            let app = window.app_handle();
+            if window.label() == "workspace" {
+                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                    api.prevent_close();
+                    let _ = window.hide();
+                }
+                if matches!(
+                    event,
+                    tauri::WindowEvent::Moved(_) | tauri::WindowEvent::Resized(_)
+                ) {
+                    if let (Ok(p), Ok(s), Ok(scale)) = (
+                        window.inner_position(),
+                        window.inner_size(),
+                        window.scale_factor(),
+                    ) {
+                        let _ = app.state::<Arc<Runtime>>().store.save_window_bounds(
+                            "workspace",
+                            Bounds {
+                                x: p.x as f64 / scale,
+                                y: p.y as f64 / scale,
+                                width: s.width as f64 / scale,
+                                height: s.height as f64 / scale,
+                            },
+                        );
+                    }
+                }
+                return;
+            }
+            let native = app.state::<NativeState>();
+            if matches!(event, tauri::WindowEvent::Moved(_))
+                && native.dragging.load(Ordering::Relaxed)
+            {
+                let generation = native.move_generation.fetch_add(1, Ordering::Relaxed) + 1;
+                let handle = app.clone();
+                tauri::async_runtime::spawn(async move {
+                    let settle_ms = handle
+                        .state::<Arc<Runtime>>()
+                        .settings
+                        .read()
+                        .unwrap()
+                        .dock_hover_delay_ms;
+                    tokio::time::sleep(std::time::Duration::from_millis(settle_ms)).await;
+                    let current = handle.state::<NativeState>();
+                    if current.move_generation.load(Ordering::Relaxed) != generation {
+                        return;
+                    }
+                    current.dragging.store(false, Ordering::Relaxed);
+                    let snap_handle = handle.clone();
+                    let _ = handle.run_on_main_thread(move || snap_dock(&snap_handle));
+                });
+            }
+        })
         .setup(move |app| {
             startup_trace("native setup callback");
             let handle = app.handle().clone();

@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { ArrowUp, ArrowDown, Check } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { ArrowUp, ArrowDown } from "lucide-react";
 import type { Dashboard, Settings } from "../types";
 import type { T } from "../i18n";
 import { AgentIcon } from "./AgentIcon";
@@ -13,10 +13,43 @@ export function SettingsPanel({
   onSave: (s: Settings) => Promise<void>;
 }) {
   const [s, set] = useState(data.settings);
-  const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const update = <K extends keyof Settings>(key: K, value: Settings[K]) =>
-    set((v) => ({ ...v, [key]: value }));
+  const latest = useRef(s);
+  const pending = useRef<Settings | null>(null);
+  const saving = useRef(false);
+  useEffect(() => {
+    if (saving.current || pending.current) return;
+    latest.current = data.settings;
+    set(data.settings);
+  }, [data.settings]);
+  async function flush() {
+    if (saving.current) return;
+    saving.current = true;
+    try {
+      while (pending.current) {
+        const next = pending.current;
+        pending.current = null;
+        await onSave(next);
+      }
+      setError("");
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      saving.current = false;
+    }
+  }
+  const update = <K extends keyof Settings>(key: K, value: Settings[K]) => {
+    let next = { ...latest.current, [key]: value };
+    if (key === "dockSize")
+      next = {
+        ...next,
+        dockHoverSize: Math.max(next.dockHoverSize, next.dockSize),
+      };
+    latest.current = next;
+    set(next);
+    pending.current = next;
+    void flush();
+  };
   const providers = [...data.agents.map((a) => a.provider)]
     .filter((p, i, all) => all.findIndex((v) => v.id === p.id) === i)
     .sort((a, b) => {
@@ -31,17 +64,6 @@ export function SettingsPanel({
     [next[i], next[i + by]] = [next[i + by], next[i]];
     update("visibleProviders", next);
   }
-  async function save() {
-    setBusy(true);
-    setError("");
-    try {
-      await onSave(s);
-    } catch (e) {
-      setError(String(e));
-    } finally {
-      setBusy(false);
-    }
-  }
   return (
     <section className="settings-panel">
       <div className="page-heading">
@@ -49,10 +71,7 @@ export function SettingsPanel({
           <span className="eyebrow">PREFERENCES</span>
           <h2>{t("settings")}</h2>
         </div>
-        <button className="primary-button" onClick={save} disabled={busy}>
-          <Check size={15} />
-          {t("save")}
-        </button>
+        <span className="field-hint">{t("autoSave")}</span>
       </div>
       {error && <p className="form-error">{error}</p>}
       <div className="settings-grid">
@@ -110,6 +129,37 @@ export function SettingsPanel({
                 <option value="left">{t("left")}</option>
               </select>
             </label>
+          )}
+          {s.windowMode === "floating" && (
+            <>
+              <label>
+                {t("dockSize")} <output>{s.dockSize}px</output>
+                <input
+                  aria-label={t("dockSize")}
+                  type="range"
+                  min={24}
+                  max={96}
+                  step={1}
+                  value={s.dockSize}
+                  onChange={(e) => update("dockSize", Number(e.target.value))}
+                />
+              </label>
+              <label>
+                {t("dockHoverSize")} <output>{s.dockHoverSize}px</output>
+                <input
+                  aria-label={t("dockHoverSize")}
+                  type="range"
+                  min={s.dockSize}
+                  max={120}
+                  step={1}
+                  value={s.dockHoverSize}
+                  onChange={(e) =>
+                    update("dockHoverSize", Number(e.target.value))
+                  }
+                />
+              </label>
+              <p className="field-hint">{t("dockLiveHint")}</p>
+            </>
           )}
           {data.platform === "macos" && (
             <p className="field-hint">{t("islandHint")}</p>
