@@ -34,9 +34,9 @@ Files: `config/defaults.json`, `src-tauri/src/{model,config,store,quota}.rs`, `s
 
 Interfaces: `Provider`, `Profile`, `QuotaSnapshot`, `QuotaWindow`, `Settings`; `Store::open`, `load_settings`, `save_settings`; `normalize_quota`.
 
-- [ ] Write and run failing tests for quota zero/missing/invalid values and persistent settings precedence.
-- [ ] Implement typed normalization, SQLite migrations and the configurable fourteen-provider catalog.
-- [ ] Add offline icons with attribution; run core tests and commit.
+- [x] Write and run failing tests for quota zero/missing/invalid values and persistent settings precedence.
+- [x] Implement typed normalization, SQLite migrations and the configurable fourteen-provider catalog.
+- [x] Add offline icons with attribution; run core tests and commit.
 
 ### Task 2: Discovery and quota collectors
 
@@ -44,10 +44,10 @@ Files: `src-tauri/src/providers/`, `src-tauri/src/discovery.rs`, `docs/providers
 
 Interfaces: `discover(profile, provider) -> Discovery`, `refresh(profile, provider, config) -> QuotaSnapshot`; results exclude credentials.
 
-- [ ] Write failing fixture tests for Codex, Claude, Google and custom collector payloads, including expired/missing quotas.
-- [ ] Implement Codex app-server lookup, Claude account/status-line data, Google quota buckets and local installation discovery.
-- [ ] Add a user-configured JSON collector interface for products without a verified built-in endpoint, with timeout and bounded output.
-- [ ] Verify with synthetic subprocesses and safe read-only local probes; document actual capabilities and commit.
+- [x] Write failing fixture tests for Codex, Claude, Google and custom collector payloads, including expired/missing quotas.
+- [x] Implement Codex app-server lookup, Claude account/status-line data, Google quota buckets and local installation discovery.
+- [x] Add a user-configured JSON collector interface for products without a verified built-in endpoint, with timeout and bounded output.
+- [x] Verify with synthetic subprocesses and safe read-only local probes; document actual capabilities and commit.
 
 ### Task 3: Sessions and interactive approvals
 
@@ -55,10 +55,10 @@ Files: `src-tauri/src/{sessions,broker,bridge,protocol}.rs`, bridge entry in `ma
 
 Interfaces: `start_session`, `write_session`, `resize_session`, `stop_session`, `respond`; session and request IDs are backend-issued.
 
-- [ ] Write and run broker tests for duplicate responses, cancellation, isolation and invalid choices.
-- [ ] Implement portable PTYs with output replay, resize, input and child cleanup.
-- [ ] Implement structured Codex approval sessions and authenticated Claude permission/question/status-line bridge; preserve raw terminal interaction for all supported CLI executables.
-- [ ] Test deny/allow/input flows with local fake agents, exit/timeout/Unicode behavior; commit.
+- [x] Write and run broker tests for duplicate responses, cancellation, isolation and invalid choices.
+- [x] Implement portable PTYs with output replay, resize, input and child cleanup.
+- [x] Implement structured Codex approval sessions and authenticated Claude permission/question/status-line bridge; preserve raw terminal interaction for all supported CLI executables.
+- [x] Test deny/allow/input flows with local fake agents, exit/timeout/Unicode behavior; commit.
 
 ### Task 4: Desktop UI and persistent settings
 
@@ -66,16 +66,20 @@ Files: `src/`, `src-tauri/src/{lib,desktop}.rs`, `src-tauri/tauri.conf.json`, ca
 
 Interfaces: dashboard/profile/settings/session IPC commands; dashboard, terminal and interaction events.
 
-- [ ] Build compact graphite/ivory floating UI, quota rows, provider logos, approval inbox and expanded sessions/settings.
-- [ ] Wire real state, agent visibility/order, manual/automatic refresh, CLI/profile configuration and Chinese/English themes.
-- [ ] Add tray restore, collapse, pin, close/quit and window recovery.
-- [ ] Verify keyboard controls, offline icons, preview layout and native launch; commit.
+- [x] Build compact graphite/ivory floating UI, quota rows, provider logos, approval inbox and expanded sessions/settings.
+- [x] Wire real state, agent visibility/order, manual/automatic refresh, CLI/profile configuration and Chinese/English themes.
+- [x] Add tray restore, collapse, pin, close/quit and window recovery.
+- [x] Verify keyboard controls, offline icons, preview layout and native launch; commit.
 
 ### Task 5: Packaging, verification and docs
 
 Files: CI workflow, README, provider/configuration/validation docs, lockfiles and app icons.
 
-- [ ] Run frontend tests/build, Rust tests/formatting/native build and resolve failures.
-- [ ] Configure native CI checks for all three operating systems; distinguish configuration from executed checks.
-- [ ] Perform a fresh whole-branch review and fix significant findings with regression tests.
-- [ ] Update bilingual README with commands, configuration, actual provider support and platform dependencies; commit.
+- [x] Run frontend tests/build, Rust tests/formatting/native build and resolve failures.
+- [x] Configure native CI checks for all three operating systems; distinguish configuration from executed checks.
+- [x] Perform a fresh whole-branch review and fix significant findings with regression tests.
+- [x] Update bilingual README with commands, configuration, actual provider support and platform dependencies; commit.
+
+## Execution outcome
+
+Implementation and local automated checks are complete. The provider catalog includes collector fallback for ten agents whose native quota APIs are not implemented. Windows/Linux CI is configured but not run here. Live Codex probing is blocked by protected CLI SQLite state; browser/native UI automation is unavailable. See `docs/validation.md` for the distinction between implemented, locally tested and outstanding external verification.

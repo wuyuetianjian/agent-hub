@@ -1,0 +1,41 @@
+[package]
+name = "agent-orbit"
+version = "0.1.0"
+description = "A local agent quota and CLI companion"
+edition = "2021"
+rust-version = "1.85"
+
+[lib]
+name = "agent_orbit"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[features]
+custom-protocol = ["tauri/custom-protocol"]
+default = ["desktop"]
+desktop = ["dep:tauri", "dep:tauri-plugin-dialog", "dep:tauri-plugin-opener", "dep:tauri-plugin-autostart"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+uuid = { version = "1", features = ["v4"] }
+rusqlite = { version = "0.32", features = ["bundled"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+chrono = { version = "0.4", features = ["serde"] }
+dirs = "6"
+which = "7"
+portable-pty = "0.9"
+axum = "0.8"
+base64 = "0.22"
+subtle = "2"
+anyhow = "1"
+tauri = { version = "2", features = ["tray-icon", "image-png", "macos-private-api"], optional = true }
+tauri-plugin-dialog = { version = "2", optional = true }
+tauri-plugin-opener = { version = "2", optional = true }
+tauri-plugin-autostart = { version = "2", optional = true }
+
+[dev-dependencies]
+tempfile = "3"

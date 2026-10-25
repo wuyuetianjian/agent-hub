@@ -1,0 +1,38 @@
+name: Native checks
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  check:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            bundle: deb
+          - os: windows-latest
+            bundle: nsis
+          - os: macos-latest
+            bundle: app
+    runs-on: ${{ matrix.os }}
+    env:
+      CARGO_HOME: ${{ github.workspace }}/.cache/cargo
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - name: Linux native dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential libayatana-appindicator3-dev librsvg2-dev patchelf
+      - run: npm ci
+      - run: npm test
+      - run: cargo test --manifest-path src-tauri/Cargo.toml --no-default-features
+      - run: cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
+      - run: npm run desktop:build -- --debug --bundles ${{ matrix.bundle }}

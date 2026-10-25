@@ -1,0 +1,217 @@
+{
+  "appName": "Agent Orbit",
+  "version": "0.1.0",
+  "settings": {
+    "locale": "zh",
+    "theme": "dark",
+    "refreshSeconds": 120,
+    "staleSeconds": 600,
+    "requestTimeoutSeconds": 20,
+    "interactionTimeoutSeconds": 300,
+    "warningPercent": 20,
+    "alwaysOnTop": true,
+    "compact": false,
+    "startAtLogin": false,
+    "visibleProviders": [
+      "claude",
+      "codex",
+      "gemini",
+      "antigravity",
+      "cursor",
+      "copilot",
+      "windsurf"
+    ],
+    "windowWidth": 430,
+    "windowHeight": 640,
+    "expandedWidth": 1040,
+    "expandedHeight": 760,
+    "maxOutputBytes": 1048576,
+    "windowMode": "floating",
+    "summaryPolicy": "shortest",
+    "islandWidth": 520,
+    "islandHeight": 88
+  },
+  "providers": [
+    {
+      "id": "claude",
+      "name": "Claude Code",
+      "publisher": "Anthropic",
+      "icon": "/icons/claude.svg",
+      "color": "#c98066",
+      "executables": ["claude"],
+      "adapter": "claude",
+      "usageUrl": "https://claude.ai/settings/usage",
+      "credentialPaths": [".claude/.credentials.json"],
+      "detectionPaths": [".claude"]
+    },
+    {
+      "id": "codex",
+      "name": "Codex",
+      "publisher": "OpenAI",
+      "icon": "/icons/codex.svg",
+      "color": "#a9d6c2",
+      "executables": ["codex"],
+      "adapter": "codex",
+      "usageUrl": "https://chatgpt.com/codex/settings/usage",
+      "credentialPaths": [".codex/auth.json"],
+      "detectionPaths": [".codex"]
+    },
+    {
+      "id": "gemini",
+      "name": "Gemini CLI",
+      "publisher": "Google",
+      "icon": "/icons/gemini.svg",
+      "color": "#85afff",
+      "executables": ["gemini"],
+      "adapter": "google",
+      "usageUrl": "https://aistudio.google.com/usage",
+      "credentialPaths": [".gemini/oauth_creds.json"],
+      "detectionPaths": [".gemini"]
+    },
+    {
+      "id": "antigravity",
+      "name": "Antigravity",
+      "publisher": "Google",
+      "icon": "/icons/antigravity.svg",
+      "color": "#b3baf7",
+      "executables": ["agy", "antigravity"],
+      "adapter": "collector",
+      "usageUrl": "https://antigravity.google/",
+      "credentialPaths": [],
+      "detectionPaths": [".gemini/antigravity"]
+    },
+    {
+      "id": "cursor",
+      "name": "Cursor",
+      "publisher": "Cursor",
+      "icon": "/icons/cursor.svg",
+      "color": "#d2d2d2",
+      "executables": ["cursor-agent", "agent"],
+      "adapter": "collector",
+      "usageUrl": "https://cursor.com/dashboard",
+      "credentialPaths": [],
+      "detectionPaths": [".cursor"]
+    },
+    {
+      "id": "copilot",
+      "name": "GitHub Copilot",
+      "publisher": "GitHub",
+      "icon": "/icons/copilot.svg",
+      "color": "#b6a3e6",
+      "executables": ["copilot"],
+      "adapter": "copilot",
+      "usageUrl": "https://github.com/settings/copilot",
+      "credentialPaths": [
+        ".config/github-copilot/apps.json",
+        ".config/github-copilot/hosts.json"
+      ],
+      "detectionPaths": [".config/github-copilot"]
+    },
+    {
+      "id": "windsurf",
+      "name": "Windsurf",
+      "publisher": "Windsurf",
+      "icon": "/icons/windsurf.svg",
+      "color": "#78cab8",
+      "executables": ["windsurf"],
+      "adapter": "collector",
+      "usageUrl": "https://windsurf.com/subscription",
+      "credentialPaths": [],
+      "detectionPaths": [".codeium/windsurf"]
+    },
+    {
+      "id": "cline",
+      "name": "Cline",
+      "publisher": "Cline",
+      "icon": "/icons/cline.svg",
+      "color": "#e8c17d",
+      "executables": [],
+      "adapter": "collector",
+      "usageUrl": "https://app.cline.bot/",
+      "credentialPaths": [],
+      "detectionPaths": [".cline"]
+    },
+    {
+      "id": "roo",
+      "name": "Roo Code",
+      "publisher": "Roo Code",
+      "icon": "/icons/roo.svg",
+      "color": "#c3b29b",
+      "executables": [],
+      "adapter": "collector",
+      "usageUrl": "https://app.roocode.com/",
+      "credentialPaths": [],
+      "detectionPaths": [".roo"]
+    },
+    {
+      "id": "opencode",
+      "name": "OpenCode",
+      "publisher": "OpenCode",
+      "icon": "/icons/opencode.svg",
+      "color": "#d9d0c5",
+      "executables": ["opencode"],
+      "adapter": "collector",
+      "usageUrl": "https://opencode.ai/",
+      "credentialPaths": [],
+      "detectionPaths": [".config/opencode", ".local/share/opencode"]
+    },
+    {
+      "id": "continue",
+      "name": "Continue",
+      "publisher": "Continue",
+      "icon": "/icons/continue.svg",
+      "color": "#a6c5a0",
+      "executables": ["cn"],
+      "adapter": "collector",
+      "usageUrl": "https://hub.continue.dev/",
+      "credentialPaths": [],
+      "detectionPaths": [".continue"]
+    },
+    {
+      "id": "kiro",
+      "name": "Kiro",
+      "publisher": "AWS",
+      "icon": "/icons/kiro.svg",
+      "color": "#ba9bed",
+      "executables": ["kiro-cli"],
+      "adapter": "collector",
+      "usageUrl": "https://app.kiro.dev/",
+      "credentialPaths": [],
+      "detectionPaths": [".kiro"]
+    },
+    {
+      "id": "amazonq",
+      "name": "Amazon Q",
+      "publisher": "AWS",
+      "icon": "/icons/amazonq.svg",
+      "color": "#a6a5ec",
+      "executables": ["q"],
+      "adapter": "collector",
+      "usageUrl": "https://aws.amazon.com/q/developer/",
+      "credentialPaths": [],
+      "detectionPaths": [".aws/amazonq"]
+    },
+    {
+      "id": "aider",
+      "name": "Aider",
+      "publisher": "Aider",
+      "icon": "/icons/aider.svg",
+      "color": "#94c276",
+      "executables": ["aider"],
+      "adapter": "collector",
+      "usageUrl": "https://aider.chat/",
+      "credentialPaths": [],
+      "detectionPaths": [".aider"]
+    }
+  ],
+  "endpoints": {
+    "claudeUsage": "https://api.anthropic.com/api/oauth/usage",
+    "googleBase": "https://cloudcode-pa.googleapis.com/v1internal",
+    "copilotUser": "https://api.github.com/copilot_internal/user"
+  },
+  "headers": {
+    "claudeBeta": "oauth-2025-04-20",
+    "copilotApiVersion": "2022-11-28",
+    "claudeKeychainService": "Claude Code-credentials"
+  }
+}
