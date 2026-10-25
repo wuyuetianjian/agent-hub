@@ -22,6 +22,8 @@ export interface Settings {
   warningPercent: number;
   alwaysOnTop: boolean;
   compact: boolean;
+  dockPresets: { id: string; size: number; hoverSize: number }[];
+  dockLocked: boolean;
   dockSide: "left" | "right";
   dockSize: number;
   dockHoverSize: number;

@@ -1,20 +1,29 @@
 use crate::window_state::Bounds;
 use crate::{model::*, runtime::Runtime};
 use std::sync::{
-    atomic::{AtomicBool, AtomicU64, Ordering},
+    atomic::{AtomicBool, Ordering},
     Arc, Mutex,
 };
 #[derive(Default)]
 struct NativeState {
     tray_available: AtomicBool,
     dragging: AtomicBool,
-    move_generation: AtomicU64,
-    hovered: AtomicBool,
+    drag_origin: Mutex<Option<Bounds>>,
+    panel: Mutex<Option<PanelTarget>>,
     view: Mutex<Option<(String, bool)>>,
+    placed_dock_side: Mutex<Option<String>>,
+}
+#[derive(Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct PanelTarget {
+    profile_id: String,
+    anchor: f64,
+    pinned: bool,
+    height: f64,
 }
 use tauri::{
     menu::{Menu, MenuItem},
-    tray::TrayIconBuilder,
+    tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     Emitter, LogicalPosition, LogicalSize, Manager, State,
 };
 use tauri_plugin_autostart::ManagerExt;
@@ -65,10 +74,22 @@ fn save_settings(
             app.autolaunch().disable().map_err(error)?;
         }
     }
+    let mode_changed = settings.window_mode != runtime.settings.read().unwrap().window_mode;
     runtime.save_settings(settings).map_err(error)?;
     let view = app.state::<NativeState>().view.lock().unwrap().clone();
     if let Some((view, _)) = view {
-        layout(&app, &runtime, &view)?;
+        layout(&app, &runtime, if mode_changed { "widget" } else { &view })?;
+    }
+    if runtime.settings.read().unwrap().window_mode == "floating" {
+        let target = app.state::<NativeState>().panel.lock().unwrap().clone();
+        if let Some(target) = target {
+            position_dock_panel(&app, &target)?;
+        }
+    } else {
+        *app.state::<NativeState>().panel.lock().unwrap() = None;
+        if let Some(panel) = app.get_webview_window("dock-panel") {
+            let _ = panel.hide();
+        }
     }
     Ok(())
 }
@@ -149,7 +170,13 @@ fn save_geometry(app: &tauri::AppHandle, runtime: &Runtime) {
     {
         let _ = transient;
         let view = if view.starts_with("dock") {
-            "dock".to_string()
+            let side = native
+                .placed_dock_side
+                .lock()
+                .unwrap()
+                .clone()
+                .unwrap_or_else(|| runtime.settings.read().unwrap().dock_side.clone());
+            format!("dock:{side}")
         } else {
             view
         };
@@ -210,27 +237,13 @@ fn layout(app: &tauri::AppHandle, runtime: &Runtime, view: &str) -> CommandResul
                     || pending_profiles.contains(p.id.as_str())
             })
             .count();
-        let size = if app.state::<NativeState>().hovered.load(Ordering::Relaxed) {
-            s.dock_hover_size
-        } else {
-            s.dock_size
-        };
-        let rail_width = size + 2.0 * s.dock_padding;
-        let height = (2.0 * s.dock_padding
+        let size = s.dock_hover_size;
+        let rail_width = size + s.dock_padding;
+        let height = 2.0 * s.dock_padding
             + count as f64 * size
             + count.saturating_sub(1) as f64 * s.dock_gap
-            + s.dock_chrome_height)
-            .max(if view == "dockDetail" {
-                s.dock_popup_height
-            } else {
-                0.0
-            });
-        let width = rail_width
-            + if view == "dockDetail" {
-                s.dock_gap + s.dock_panel_width
-            } else {
-                0.0
-            };
+            + s.dock_chrome_height;
+        let width = rail_width;
         if let Some(m) = window
             .current_monitor()
             .ok()
@@ -252,9 +265,10 @@ fn layout(app: &tauri::AppHandle, runtime: &Runtime, view: &str) -> CommandResul
                 s.dock_edge_inset,
                 runtime
                     .store
-                    .window_bounds("dock")
+                    .window_bounds(&format!("dock:{}", s.dock_side))
                     .ok()
                     .flatten()
+                    .or_else(|| runtime.store.window_bounds("dock").ok().flatten())
                     .map(|b| b.y),
             );
             let _ = window.set_min_size(Some(LogicalSize::new(24.0, 80.0)));
@@ -270,6 +284,7 @@ fn layout(app: &tauri::AppHandle, runtime: &Runtime, view: &str) -> CommandResul
         let _ = window.set_shadow(false);
         let _ = window.set_resizable(false);
         let _ = window.set_always_on_top(s.always_on_top);
+        *app.state::<NativeState>().placed_dock_side.lock().unwrap() = Some(s.dock_side.clone());
         *app.state::<NativeState>().view.lock().unwrap() = Some((view.into(), true));
         window.show().map_err(error)?;
         return Ok(());
@@ -309,6 +324,11 @@ fn layout(app: &tauri::AppHandle, runtime: &Runtime, view: &str) -> CommandResul
         })
         .collect();
     let saved = runtime.store.window_bounds(view).map_err(error)?;
+    let desired = if view == "workspace" {
+        saved.map(|b| (b.width, b.height)).unwrap_or(desired)
+    } else {
+        desired
+    };
     let bounds = crate::window_state::restore(saved, desired, &displays);
     window
         .set_size(LogicalSize::new(bounds.width, bounds.height))
@@ -348,16 +368,10 @@ fn set_window_view(
     app: tauri::AppHandle,
     runtime: State<'_, Arc<Runtime>>,
     view: String,
-    hovered: Option<bool>,
     window: tauri::WebviewWindow,
 ) -> CommandResult<()> {
     if window.label() != "main" || view == "workspace" {
         return Err("Use the independent workspace window".into());
-    }
-    if let Some(hovered) = hovered {
-        app.state::<NativeState>()
-            .hovered
-            .store(hovered, Ordering::Relaxed);
     }
     layout(&app, &runtime, &view)
 }
@@ -404,14 +418,243 @@ fn open_workspace(
     window.set_focus().map_err(error)
 }
 #[tauri::command]
-fn drag_dock(app: tauri::AppHandle, window: tauri::WebviewWindow) -> CommandResult<()> {
-    if window.label() != "main" {
-        return Err("Dock window required".into());
+fn drag_dock(
+    app: tauri::AppHandle,
+    runtime: State<'_, Arc<Runtime>>,
+    window: tauri::WebviewWindow,
+) -> CommandResult<()> {
+    if window.label() != "main" || runtime.settings.read().unwrap().dock_locked {
+        return Err("Dock position is locked".into());
     }
+    let position = window.inner_position().map_err(error)?;
+    let scale = window.scale_factor().map_err(error)?;
+    *app.state::<NativeState>().drag_origin.lock().unwrap() = Some(Bounds {
+        x: position.x as f64 / scale,
+        y: position.y as f64 / scale,
+        width: 0.0,
+        height: 0.0,
+    });
     app.state::<NativeState>()
         .dragging
         .store(true, Ordering::Relaxed);
-    window.start_dragging().map_err(error)
+    if let Some(panel) = app.get_webview_window("dock-panel") {
+        let _ = panel.hide();
+    }
+    Ok(())
+}
+#[tauri::command]
+fn move_dock(
+    app: tauri::AppHandle,
+    window: tauri::WebviewWindow,
+    dx: f64,
+    dy: f64,
+) -> CommandResult<()> {
+    if window.label() != "main" || !dx.is_finite() || !dy.is_finite() {
+        return Err("Invalid dock movement".into());
+    }
+    let origin = *app.state::<NativeState>().drag_origin.lock().unwrap();
+    if let Some(origin) = origin {
+        window
+            .set_position(LogicalPosition::new(origin.x + dx, origin.y + dy))
+            .map_err(error)?;
+    }
+    Ok(())
+}
+#[tauri::command]
+fn finish_dock_drag(app: tauri::AppHandle, window: tauri::WebviewWindow) -> CommandResult<()> {
+    if window.label() != "main" {
+        return Err("Dock window required".into());
+    }
+    *app.state::<NativeState>().drag_origin.lock().unwrap() = None;
+    if app
+        .state::<NativeState>()
+        .dragging
+        .swap(false, Ordering::Relaxed)
+    {
+        snap_dock(&app);
+    }
+    Ok(())
+}
+#[tauri::command]
+fn reset_dock_position(
+    app: tauri::AppHandle,
+    runtime: State<'_, Arc<Runtime>>,
+) -> CommandResult<()> {
+    let side = runtime.settings.read().unwrap().dock_side.clone();
+    let Some(window) = app.get_webview_window("main") else {
+        return Err("Dock unavailable".into());
+    };
+    if let Some(m) = window.current_monitor().map_err(error)? {
+        let scale = m.scale_factor();
+        let size = window.inner_size().map_err(error)?;
+        let display = Bounds {
+            x: m.position().x as f64 / scale,
+            y: m.position().y as f64 / scale,
+            width: m.size().width as f64 / scale,
+            height: m.size().height as f64 / scale,
+        };
+        let inset = runtime.settings.read().unwrap().dock_edge_inset;
+        let bounds = crate::window_state::dock_bounds(
+            display,
+            size.width as f64 / scale,
+            size.height as f64 / scale,
+            &side,
+            inset,
+        );
+        window
+            .set_position(LogicalPosition::new(bounds.x, bounds.y))
+            .map_err(error)?;
+        save_geometry(&app, &runtime);
+    }
+    Ok(())
+}
+fn position_dock_panel(app: &tauri::AppHandle, target: &PanelTarget) -> CommandResult<()> {
+    let runtime = app.state::<Arc<Runtime>>();
+    let s = runtime.settings.read().unwrap().clone();
+    let dock = app.get_webview_window("main").ok_or("Dock unavailable")?;
+    let panel = app
+        .get_webview_window("dock-panel")
+        .ok_or("Detail window unavailable")?;
+    let Some(m) = dock.current_monitor().map_err(error)? else {
+        return Ok(());
+    };
+    let scale = dock.scale_factor().map_err(error)?;
+    let ms = m.scale_factor();
+    let p = dock.inner_position().map_err(error)?;
+    let z = dock.inner_size().map_err(error)?;
+    let display = Bounds {
+        x: m.position().x as f64 / ms,
+        y: m.position().y as f64 / ms,
+        width: m.size().width as f64 / ms,
+        height: m.size().height as f64 / ms,
+    };
+    let bounds = crate::window_state::panel_bounds(
+        display,
+        Bounds {
+            x: p.x as f64 / scale,
+            y: p.y as f64 / scale,
+            width: z.width as f64 / scale,
+            height: z.height as f64 / scale,
+        },
+        s.dock_panel_width,
+        target.height.min(s.dock_popup_height),
+        &s.dock_side,
+        s.dock_gap,
+        target.anchor,
+    );
+    panel
+        .set_size(LogicalSize::new(bounds.width, bounds.height))
+        .map_err(error)?;
+    panel
+        .set_position(LogicalPosition::new(bounds.x, bounds.y))
+        .map_err(error)?;
+    panel.set_always_on_top(s.always_on_top).map_err(error)?;
+    Ok(())
+}
+#[tauri::command]
+fn set_dock_panel(
+    app: tauri::AppHandle,
+    runtime: State<'_, Arc<Runtime>>,
+    profile_id: Option<String>,
+    anchor: f64,
+    pinned: bool,
+    window: tauri::WebviewWindow,
+) -> CommandResult<()> {
+    if window.label() != "main" || !anchor.is_finite() {
+        return Err("Invalid detail target".into());
+    }
+    let panel = app
+        .get_webview_window("dock-panel")
+        .ok_or("Detail window unavailable")?;
+    let profile_id = if runtime.settings.read().unwrap().window_mode == "floating" {
+        profile_id
+    } else {
+        None
+    };
+    if let Some(profile_id) = profile_id {
+        runtime.profile(&profile_id).map_err(error)?;
+        let previous = app.state::<NativeState>().panel.lock().unwrap().clone();
+        let target = PanelTarget {
+            height: previous
+                .filter(|p| p.profile_id == profile_id)
+                .map(|p| p.height)
+                .unwrap_or(runtime.settings.read().unwrap().dock_popup_height),
+            profile_id,
+            anchor,
+            pinned,
+        };
+        *app.state::<NativeState>().panel.lock().unwrap() = Some(target.clone());
+        position_dock_panel(&app, &target)?;
+        panel.emit("orbit:dock-panel", &target).map_err(error)?;
+        if !panel.is_visible().map_err(error)? {
+            // Showing a hover window must not take focus from the user's editor.
+            panel.set_focusable(false).map_err(error)?;
+            let shown = panel.show().map_err(error);
+            let restored = panel.set_focusable(true).map_err(error);
+            shown?;
+            restored?;
+        }
+    } else {
+        *app.state::<NativeState>().panel.lock().unwrap() = None;
+        panel.hide().map_err(error)?;
+    }
+    Ok(())
+}
+#[tauri::command]
+fn get_dock_panel(app: tauri::AppHandle) -> Option<PanelTarget> {
+    app.state::<NativeState>().panel.lock().unwrap().clone()
+}
+#[tauri::command]
+fn resize_dock_panel(
+    app: tauri::AppHandle,
+    height: f64,
+    profile_id: String,
+    window: tauri::WebviewWindow,
+) -> CommandResult<()> {
+    if window.label() != "dock-panel" || !height.is_finite() || height <= 0.0 {
+        return Err("Invalid detail size".into());
+    }
+    let target = {
+        let native = app.state::<NativeState>();
+        let mut panel = native.panel.lock().unwrap();
+        if let Some(target) = panel
+            .as_mut()
+            .filter(|target| target.profile_id == profile_id)
+        {
+            target.height = height;
+        }
+        panel.clone()
+    };
+    if let Some(target) = target {
+        position_dock_panel(&app, &target)?;
+    }
+    Ok(())
+}
+#[tauri::command]
+fn dock_panel_pointer(
+    app: tauri::AppHandle,
+    inside: bool,
+    dismiss: Option<bool>,
+    toggle_pin: Option<bool>,
+) -> CommandResult<()> {
+    if dismiss.unwrap_or(false) {
+        *app.state::<NativeState>().panel.lock().unwrap() = None;
+        if let Some(panel) = app.get_webview_window("dock-panel") {
+            let _ = panel.hide();
+        }
+    }
+    if let Some(main) = app.get_webview_window("main") {
+        main.emit("orbit:panel-presence",serde_json::json!({"inside":inside,"dismiss":dismiss.unwrap_or(false),"togglePin":toggle_pin.unwrap_or(false)})).map_err(error)?;
+    }
+    Ok(())
+}
+fn show_workspace(app: &tauri::AppHandle) {
+    let runtime = app.state::<Arc<Runtime>>();
+    let _ = layout(app, &runtime, "workspace");
+    if let Some(window) = app.get_webview_window("workspace") {
+        let _ = window.unminimize();
+        let _ = window.set_focus();
+    }
 }
 fn snap_dock(app: &tauri::AppHandle) {
     let Some(window) = app.get_webview_window("main") else {
@@ -442,11 +685,7 @@ fn snap_dock(app: &tauri::AppHandle) {
         .clone()
         .map(|(v, _)| v)
         .unwrap_or_else(|| "dock".into());
-    let rail = if app.state::<NativeState>().hovered.load(Ordering::Relaxed) {
-        settings.dock_hover_size
-    } else {
-        settings.dock_size
-    } + 2.0 * settings.dock_padding;
+    let rail = settings.dock_hover_size + settings.dock_padding;
     let width = size.width as f64 / scale;
     let rail_x = position.x as f64 / scale
         + if settings.dock_side == "right" {
@@ -456,6 +695,15 @@ fn snap_dock(app: &tauri::AppHandle) {
         };
     settings.dock_side = crate::window_state::nearest_dock_side(display, rail_x, rail).into();
     save_geometry(app, &runtime);
+    let _ = runtime.store.save_window_bounds(
+        &format!("dock:{}", settings.dock_side),
+        Bounds {
+            x: position.x as f64 / scale,
+            y: position.y as f64 / scale,
+            width: size.width as f64 / scale,
+            height: size.height as f64 / scale,
+        },
+    );
     if runtime.save_settings(settings).is_ok() {
         let _ = layout(app, &runtime, &view);
     }
@@ -506,6 +754,13 @@ pub fn run() {
             set_window_view,
             open_workspace,
             drag_dock,
+            move_dock,
+            finish_dock_drag,
+            reset_dock_position,
+            set_dock_panel,
+            get_dock_panel,
+            resize_dock_panel,
+            dock_panel_pointer,
             hide_window,
             quit_app
         ])
@@ -538,28 +793,12 @@ pub fn run() {
                 }
                 return;
             }
-            let native = app.state::<NativeState>();
-            if matches!(event, tauri::WindowEvent::Moved(_))
-                && native.dragging.load(Ordering::Relaxed)
-            {
-                let generation = native.move_generation.fetch_add(1, Ordering::Relaxed) + 1;
-                let handle = app.clone();
-                tauri::async_runtime::spawn(async move {
-                    let settle_ms = handle
-                        .state::<Arc<Runtime>>()
-                        .settings
-                        .read()
-                        .unwrap()
-                        .dock_hover_delay_ms;
-                    tokio::time::sleep(std::time::Duration::from_millis(settle_ms)).await;
-                    let current = handle.state::<NativeState>();
-                    if current.move_generation.load(Ordering::Relaxed) != generation {
-                        return;
-                    }
-                    current.dragging.store(false, Ordering::Relaxed);
-                    let snap_handle = handle.clone();
-                    let _ = handle.run_on_main_thread(move || snap_dock(&snap_handle));
-                });
+            if window.label() == "dock-panel" {
+                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                    api.prevent_close();
+                    let _ = window.hide();
+                    let _ = dock_panel_pointer(app.clone(), false, Some(true), None);
+                }
             }
         })
         .setup(move |app| {
@@ -591,23 +830,21 @@ pub fn run() {
             let mut tray = TrayIconBuilder::new()
                 .menu(&menu)
                 .tooltip(&rt.config.app_name)
-                .on_menu_event(|app, event| match event.id.as_ref() {
-                    "show" => {
-                        let runtime = app.state::<Arc<Runtime>>();
-                        let view = app
-                            .state::<NativeState>()
-                            .view
-                            .lock()
-                            .unwrap()
-                            .as_ref()
-                            .map(|(v, _)| v.clone())
-                            .unwrap_or_else(|| "widget".into());
-                        let _ = layout(app, &runtime, &view);
-                        if let Some(w) = app.get_webview_window("main") {
-                            let _ = w.show();
-                            let _ = w.set_focus();
+                .show_menu_on_left_click(false)
+                .on_tray_icon_event(|tray, event| {
+                    if matches!(
+                        event,
+                        TrayIconEvent::Click {
+                            button: MouseButton::Left,
+                            button_state: MouseButtonState::Up,
+                            ..
                         }
+                    ) {
+                        show_workspace(tray.app_handle());
                     }
+                })
+                .on_menu_event(|app, event| match event.id.as_ref() {
+                    "show" => show_workspace(app),
                     "quit" => {
                         save_geometry(app, &app.state::<Arc<Runtime>>());
                         app.state::<Arc<Runtime>>().sessions.stop_all();
@@ -630,6 +867,10 @@ pub fn run() {
         .expect("Unable to start Agent Orbit");
     startup_trace("starting native event loop");
     app.run(|app, event| {
+        #[cfg(target_os = "macos")]
+        if let tauri::RunEvent::Reopen { .. } = event {
+            show_workspace(app);
+        }
         if let tauri::RunEvent::ExitRequested { .. } = event {
             save_geometry(app, &app.state::<Arc<Runtime>>());
             app.state::<Arc<Runtime>>().sessions.stop_all();

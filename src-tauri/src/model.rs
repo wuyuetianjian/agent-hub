@@ -27,6 +27,13 @@ pub struct Provider {
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct DockPreset {
+    pub id: String,
+    pub size: f64,
+    pub hover_size: f64,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Settings {
     pub locale: String,
     pub theme: String,
@@ -41,6 +48,8 @@ pub struct Settings {
     pub island_height: f64,
     pub always_on_top: bool,
     pub compact: bool,
+    pub dock_presets: Vec<DockPreset>,
+    pub dock_locked: bool,
     pub dock_side: String,
     pub dock_size: f64,
     pub dock_hover_size: f64,

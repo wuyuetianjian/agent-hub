@@ -98,3 +98,27 @@ pub fn nearest_dock_side(display: Bounds, x: f64, rail_width: f64) -> &'static s
         "right"
     }
 }
+
+pub fn panel_bounds(
+    display: Bounds,
+    dock: Bounds,
+    width: f64,
+    height: f64,
+    side: &str,
+    gap: f64,
+    anchor: f64,
+) -> Bounds {
+    let width = width.min(display.width).max(1.0);
+    let height = height.min(display.height).max(1.0);
+    let x = if side == "left" {
+        dock.x + dock.width + gap
+    } else {
+        dock.x - gap - width
+    };
+    Bounds {
+        x: x.clamp(display.x, display.x + display.width - width),
+        y: (dock.y + anchor - height / 2.0).clamp(display.y, display.y + display.height - height),
+        width,
+        height,
+    }
+}

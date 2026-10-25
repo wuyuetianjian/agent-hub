@@ -1,3 +1,4 @@
+import { translator } from "../i18n";
 import type { AgentView, Settings } from "../types";
 import { AgentIcon } from "./AgentIcon";
 import { summaryWindow } from "../lib/summary";
@@ -7,6 +8,7 @@ export function QuotaOrb({
   settings,
   pending = 0,
   active,
+  magnified = false,
   onHover,
   onLeave,
   onSelect,
@@ -15,6 +17,7 @@ export function QuotaOrb({
   settings: Settings;
   pending?: number;
   active: boolean;
+  magnified?: boolean;
   onHover: () => void;
   onLeave: () => void;
   onSelect: () => void;
@@ -27,9 +30,13 @@ export function QuotaOrb({
   const label = `${agent.provider.name} · ${agent.profile.label} · ${window?.label || "quota"} · ${known ? `${Math.round(percent!)}%` : "—"}`;
   return (
     <button
-      className={`dock-orb ${active ? "active" : ""} ${pending ? "has-request" : ""} ${agent.snapshot.status === "stale" ? "stale" : ""}`}
+      className={`dock-orb ${magnified ? "magnified" : ""} ${active ? "active" : ""} ${pending ? "has-request" : ""} ${agent.snapshot.status === "stale" ? "stale" : ""}`}
       style={
         {
+          "--orb-scale": magnified
+            ? settings.dockHoverSize / settings.dockSize
+            : 1,
+          "--orb-rest-size": `${settings.dockSize}px`,
           "--orb-color": low ? "var(--warning)" : agent.provider.color,
         } as React.CSSProperties
       }
@@ -64,9 +71,15 @@ export function QuotaOrb({
           strokeDashoffset={offset ?? 0}
         />
       </svg>
-      <span className="orb-percentage">
-        {known ? `${Math.round(percent!)}%` : "—"}
-      </span>
+      {agent.snapshot.windows.some(
+        (other) => other !== window && other.remainingPercent === 0,
+      ) && (
+        <span
+          className="orb-quota-alert"
+          role="img"
+          aria-label={translator(settings.locale)("otherQuotaExhausted")}
+        />
+      )}
       {pending > 0 && (
         <span className="orb-request-count" aria-label={`${pending} pending`}>
           {pending}

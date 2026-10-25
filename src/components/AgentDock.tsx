@@ -1,21 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import {
-  Settings2,
-  GripVertical,
-  X,
-  ArrowUpRight,
-  RefreshCw,
-  Clock3,
-  TerminalSquare,
-} from "lucide-react";
+import { Settings2, GripVertical, LockKeyhole } from "lucide-react";
 import type { Dashboard, Reply } from "../types";
 import type { T } from "../i18n";
 import { dockAgents, requestsForProfile } from "../lib/dock";
-import { resetLabel } from "../lib/format";
 import { QuotaOrb } from "./QuotaOrb";
-import { AgentIcon } from "./AgentIcon";
-import { ApprovalCard, type ApprovalDraft } from "./ApprovalCard";
-import { statusText } from "./QuotaCard";
+import { type ApprovalDraft } from "./ApprovalCard";
+import { DockDetails } from "./DockDetails";
 export function AgentDock({
   data,
   drafts = {},
@@ -23,7 +13,9 @@ export function AgentDock({
   t,
   busy,
   onPanelChange,
-  onHoverChange,
+  detached = false,
+  onPanelTarget,
+  panelPresence,
   onDrag,
   onRefresh,
   onDetails,
@@ -37,8 +29,22 @@ export function AgentDock({
   t: T;
   busy: string[];
   onPanelChange: (open: boolean) => void;
-  onHoverChange?: (hovered: boolean) => void;
-  onDrag?: () => void;
+  detached?: boolean;
+  onPanelTarget?: (target: {
+    profileId: string | null;
+    anchor: number;
+    pinned: boolean;
+  }) => void;
+  panelPresence?: {
+    inside: boolean;
+    dismiss?: boolean;
+    togglePin?: boolean;
+    sequence: number;
+  };
+  onDrag?: (
+    phase: "begin" | "move" | "end",
+    delta?: { dx: number; dy: number },
+  ) => void;
   onRefresh: (id: string) => void;
   onDetails: (id: string) => void;
   onSettings: () => void;
@@ -46,23 +52,10 @@ export function AgentDock({
   onRespond: (id: string, reply: Reply) => Promise<void>;
 }) {
   const s = data.settings;
-  const [hovered, setHovered] = useState(false);
-  const size = hovered ? s.dockHoverSize : s.dockSize;
-  const hoverTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
-    undefined,
-  );
-  function enterDock() {
-    clearTimeout(hoverTimer.current);
-    setHovered(true);
-    onHoverChange?.(true);
-  }
-  function leaveDock() {
-    hoverTimer.current = setTimeout(() => {
-      setHovered(false);
-      onHoverChange?.(false);
-    }, s.dockHoverDelayMs);
-  }
-  useEffect(() => () => clearTimeout(hoverTimer.current), []);
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [pinned, setPinned] = useState(false);
+  const popupInside = useRef(false);
+  const size = s.dockHoverSize;
   const agents = dockAgents(
     data.agents,
     s.visibleProviders,
@@ -88,6 +81,7 @@ export function AgentDock({
   );
   const panelRef = useRef<HTMLDivElement>(null);
   const railRef = useRef<HTMLDivElement>(null);
+  const dragOrigin = useRef<{ x: number; y: number } | null>(null);
   const pointerInside = useRef(false);
   const previousRequestCount = useRef(0);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
@@ -113,14 +107,26 @@ export function AgentDock({
     return () => window.removeEventListener("resize", resize);
   }, []);
   useEffect(() => {
+    onPanelTarget?.({ profileId: current?.profile.id ?? null, anchor, pinned });
+  }, [current?.profile.id, anchor, pinned, onPanelTarget]);
+  useEffect(() => {
+    if (!panelPresence) return;
+    popupInside.current = panelPresence.inside;
+    if (panelPresence.dismiss) dismiss();
+    else if (panelPresence.togglePin) setPinned((v) => !v);
+    else if (panelPresence.inside) cancelClose();
+    else leave();
+  }, [panelPresence?.sequence]);
+  useEffect(() => {
     onPanelChange(Boolean(current));
   }, [Boolean(current), onPanelChange]);
   useEffect(
     () => () => {
       if (closeTimer.current) clearTimeout(closeTimer.current);
       onPanelChange(false);
+      onPanelTarget?.({ profileId: null, anchor: 0, pinned: false });
     },
-    [onPanelChange],
+    [onPanelChange, onPanelTarget],
   );
   useEffect(() => {
     if (requests.some((r) => !dismissed.includes(r.id))) return;
@@ -145,6 +151,8 @@ export function AgentDock({
       previousRequestCount.current > 0 &&
       requests.length === 0 &&
       !pointerInside.current &&
+      !popupInside.current &&
+      !pinned &&
       !panelRef.current?.contains(document.activeElement)
     )
       setActive(null);
@@ -165,22 +173,34 @@ export function AgentDock({
   function show(id: string, explicit = false) {
     pointerInside.current = true;
     cancelClose();
-    if (!explicit && requests.length) return;
+    setHoveredId(id);
+    if (explicit && active === id) {
+      setPinned((v) => !v);
+      return;
+    }
+    if (!explicit && (pinned || requests.length)) return;
+    if (explicit) setPinned(true);
     setActive(id);
     updateAnchor(id);
   }
   function leave() {
     pointerInside.current = false;
     cancelClose();
-    if (requests.length) return;
+    setHoveredId(null);
+    if (requests.length || pinned) return;
     closeTimer.current = setTimeout(() => {
-      if (panelRef.current?.contains(document.activeElement)) return;
+      if (
+        popupInside.current ||
+        panelRef.current?.contains(document.activeElement)
+      )
+        return;
       setActive(null);
     }, s.dockHoverDelayMs);
   }
   function dismiss() {
     cancelClose();
     setDismissed((ids) => [...new Set([...ids, ...requests.map((r) => r.id)])]);
+    setPinned(false);
     setActive(null);
   }
   const top = Math.max(
@@ -195,19 +215,13 @@ export function AgentDock({
     "--dock-gap": `${s.dockGap}px`,
     "--dock-padding": `${s.dockPadding}px`,
     "--dock-panel-width": `${s.dockPanelWidth}px`,
-    "--dock-rail-width": `${size + 2 * s.dockPadding}px`,
+    "--dock-rail-width": `${size + s.dockPadding}px`,
     "--dock-chrome-height": `${s.dockChromeHeight}px`,
   } as React.CSSProperties;
   return (
     <div
       className={`agent-dock side-${s.dockSide} ${current ? "panel-open" : ""}`}
       style={style}
-      onMouseEnter={enterDock}
-      onMouseLeave={leaveDock}
-      onFocusCapture={enterDock}
-      onBlurCapture={(e) => {
-        if (!e.currentTarget.contains(e.relatedTarget)) leaveDock();
-      }}
       onKeyDown={(e) => {
         if (e.key === "Escape") {
           e.stopPropagation();
@@ -218,11 +232,39 @@ export function AgentDock({
       <div className="dock-rail" ref={railRef}>
         <div
           className="dock-drag-handle"
-          onMouseDown={(e) => {
-            if (e.button === 0) onDrag?.();
+          title={t(s.dockLocked ? "unlockDockHint" : "dragDock")}
+          onPointerDown={(e) => {
+            if (e.button !== 0 || s.dockLocked) return;
+            e.currentTarget.setPointerCapture(e.pointerId);
+            dragOrigin.current = { x: e.screenX, y: e.screenY };
+            dismiss();
+            onDrag?.("begin");
+          }}
+          onPointerMove={(e) => {
+            if (dragOrigin.current)
+              onDrag?.("move", {
+                dx: e.screenX - dragOrigin.current.x,
+                dy: e.screenY - dragOrigin.current.y,
+              });
+          }}
+          onPointerUp={(e) => {
+            if (!dragOrigin.current) return;
+            dragOrigin.current = null;
+            e.currentTarget.releasePointerCapture(e.pointerId);
+            onDrag?.("end");
+          }}
+          onPointerCancel={() => {
+            if (dragOrigin.current) {
+              dragOrigin.current = null;
+              onDrag?.("end");
+            }
           }}
         >
-          <GripVertical size={13} />
+          {s.dockLocked ? (
+            <LockKeyhole size={13} />
+          ) : (
+            <GripVertical size={13} />
+          )}
         </div>
         <div
           className="dock-orbs"
@@ -234,7 +276,8 @@ export function AgentDock({
             <div key={agent.profile.id} data-profile={agent.profile.id}>
               <QuotaOrb
                 agent={agent}
-                settings={{ ...s, dockSize: size }}
+                settings={s}
+                magnified={hoveredId === agent.profile.id}
                 pending={
                   requestsForProfile(agent.profile.id, data.sessions, live)
                     .length
@@ -257,7 +300,7 @@ export function AgentDock({
           </button>
         </div>
       </div>
-      {current && (
+      {current && !detached && (
         <div
           ref={panelRef}
           className={`dock-popover ${requests.length ? "approval-popover" : ""}`}
@@ -277,116 +320,24 @@ export function AgentDock({
           onMouseLeave={leave}
           onFocusCapture={cancelClose}
         >
-          <header className="dock-popover-header">
-            <AgentIcon provider={current.provider} size={30} />
-            <div>
-              <strong>{current.provider.name}</strong>
-              <span>{current.snapshot.account || current.profile.label}</span>
-            </div>
-            <button
-              className="icon-button"
-              title={t("details")}
-              onClick={() => onDetails(current.profile.id)}
-            >
-              <ArrowUpRight size={15} />
-            </button>
-            <button
-              className="icon-button"
-              title={t("close")}
-              onClick={dismiss}
-            >
-              <X size={14} />
-            </button>
-          </header>
-          {requests.length ? (
-            <div className="dock-approval-list">
-              {requests.map((request) => (
-                <ApprovalCard
-                  key={request.id}
-                  request={request}
-                  draft={drafts[request.id]}
-                  onDraftChange={(draft) => onDraftChange?.(request.id, draft)}
-                  provider={current.provider}
-                  t={t}
-                  expandedDetails
-                  onRespond={(reply) => onRespond(request.id, reply)}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="dock-quota-details">
-              <span
-                className={`dock-status ${current.snapshot.status === "ready" ? "ready" : ""}`}
-              >
-                {statusText(current.snapshot.status, t)}
-              </span>
-              {current.snapshot.windows.length ? (
-                current.snapshot.windows.map((quota, i) => (
-                  <div
-                    className="dock-quota-window"
-                    key={`${quota.label}-${i}`}
-                  >
-                    <div>
-                      <span>{quota.label}</span>
-                      <strong>
-                        {quota.remainingPercent == null
-                          ? "—"
-                          : `${Math.round(quota.remainingPercent)}%`}{" "}
-                        <small>{t("remaining")}</small>
-                      </strong>
-                    </div>
-                    <div className="quota-track">
-                      <span
-                        style={{
-                          width: `${quota.remainingPercent ?? 0}%`,
-                          background: current.provider.color,
-                        }}
-                      />
-                    </div>
-                    <p>
-                      <Clock3 size={11} />
-                      {resetLabel(quota.resetsAt, now, s.locale)}
-                    </p>
-                  </div>
-                ))
-              ) : (
-                <p className="dock-empty-quota">
-                  {current.snapshot.message || t("emptyHint")}
-                </p>
-              )}
-              <footer>
-                <span>
-                  {current.snapshot.source || current.provider.publisher}
-                </span>
-                <button
-                  className="icon-button"
-                  title={t("refresh")}
-                  disabled={busy.includes(current.profile.id)}
-                  onClick={() => onRefresh(current.profile.id)}
-                >
-                  <RefreshCw
-                    size={13}
-                    className={busy.includes(current.profile.id) ? "spin" : ""}
-                  />
-                </button>
-              </footer>
-              <button
-                className="dock-sessions-link"
-                onClick={() => onSessions(current.profile.id)}
-              >
-                <TerminalSquare size={13} />
-                {t("sessions")}
-                <span>
-                  {
-                    data.sessions.filter(
-                      (session) => session.profileId === current.profile.id,
-                    ).length
-                  }
-                </span>
-                <ArrowUpRight size={12} />
-              </button>
-            </div>
-          )}
+          <DockDetails
+            current={current}
+            s={s}
+            requests={requests}
+            sessions={data.sessions}
+            drafts={drafts}
+            onDraftChange={onDraftChange}
+            t={t}
+            busy={busy}
+            now={now}
+            pinned={pinned}
+            onPin={() => setPinned((v) => !v)}
+            onClose={dismiss}
+            onDetails={onDetails}
+            onRefresh={onRefresh}
+            onSessions={onSessions}
+            onRespond={onRespond}
+          />
         </div>
       )}
     </div>

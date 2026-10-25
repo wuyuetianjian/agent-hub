@@ -3,7 +3,8 @@
   "description": "Local widget window and user-selected dialogs",
   "windows": [
     "main",
-    "workspace"
+    "workspace",
+    "dock-panel"
   ],
   "permissions": [
     "core:default",

@@ -66,6 +66,12 @@ pub fn validate_settings(s: &crate::model::Settings) -> Result<()> {
     if s.max_output_bytes < 4096 || s.max_output_bytes > 8 * 1024 * 1024 {
         bail!("Invalid terminal output limit");
     }
+    if s.dock_presets
+        .iter()
+        .any(|p| !(24.0..=96.0).contains(&p.size) || !(p.size..=120.0).contains(&p.hover_size))
+    {
+        bail!("Invalid dock size preset");
+    }
     if !["left", "right"].contains(&s.dock_side.as_str())
         || !(24.0..=96.0).contains(&s.dock_size)
         || !(24.0..=120.0).contains(&s.dock_hover_size)

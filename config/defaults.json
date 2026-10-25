@@ -1,6 +1,6 @@
 {
   "appName": "Agent Orbit",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "settings": {
     "locale": "zh",
     "theme": "dark",
@@ -37,11 +37,29 @@
     "dockGap": 10,
     "dockPadding": 10,
     "dockPanelWidth": 360,
-    "dockEdgeInset": 12,
+    "dockEdgeInset": 0,
     "dockHoverDelayMs": 180,
     "dockChromeHeight": 64,
     "dockPopupHeight": 580,
-    "dockHoverSize": 44
+    "dockHoverSize": 44,
+    "dockLocked": false,
+    "dockPresets": [
+      {
+        "id": "small",
+        "size": 24,
+        "hoverSize": 32
+      },
+      {
+        "id": "medium",
+        "size": 32,
+        "hoverSize": 44
+      },
+      {
+        "id": "large",
+        "size": 44,
+        "hoverSize": 60
+      }
+    ]
   },
   "providers": [
     {

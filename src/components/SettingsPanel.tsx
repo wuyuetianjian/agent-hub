@@ -2,15 +2,18 @@ import { useState, useRef, useEffect } from "react";
 import { ArrowUp, ArrowDown } from "lucide-react";
 import type { Dashboard, Settings } from "../types";
 import type { T } from "../i18n";
+import { QuotaOrb } from "./QuotaOrb";
 import { AgentIcon } from "./AgentIcon";
 export function SettingsPanel({
   data,
   t,
   onSave,
+  onResetDock,
 }: {
   data: Dashboard;
   t: T;
   onSave: (s: Settings) => Promise<void>;
+  onResetDock?: () => Promise<void>;
 }) {
   const [s, set] = useState(data.settings);
   const [error, setError] = useState("");
@@ -38,6 +41,12 @@ export function SettingsPanel({
       saving.current = false;
     }
   }
+  const apply = (next: Settings) => {
+    latest.current = next;
+    set(next);
+    pending.current = next;
+    void flush();
+  };
   const update = <K extends keyof Settings>(key: K, value: Settings[K]) => {
     let next = { ...latest.current, [key]: value };
     if (key === "dockSize")
@@ -45,10 +54,7 @@ export function SettingsPanel({
         ...next,
         dockHoverSize: Math.max(next.dockHoverSize, next.dockSize),
       };
-    latest.current = next;
-    set(next);
-    pending.current = next;
-    void flush();
+    apply(next);
   };
   const providers = [...data.agents.map((a) => a.provider)]
     .filter((p, i, all) => all.findIndex((v) => v.id === p.id) === i)
@@ -132,6 +138,70 @@ export function SettingsPanel({
           )}
           {s.windowMode === "floating" && (
             <>
+              <div
+                className="dock-size-presets"
+                role="group"
+                aria-label={t("dockSize")}
+              >
+                {s.dockPresets.map((preset) => (
+                  <button
+                    key={preset.id}
+                    className={
+                      s.dockSize === preset.size &&
+                      s.dockHoverSize === preset.hoverSize
+                        ? "primary-button"
+                        : "secondary-button"
+                    }
+                    onClick={() => {
+                      apply({
+                        ...latest.current,
+                        dockSize: preset.size,
+                        dockHoverSize: preset.hoverSize,
+                      });
+                    }}
+                  >
+                    {t(
+                      (["small", "medium", "large"].includes(preset.id)
+                        ? preset.id
+                        : "medium") as "small" | "medium" | "large",
+                    )}
+                  </button>
+                ))}
+              </div>
+              {data.agents[0] && (
+                <div
+                  className="dock-size-preview"
+                  style={
+                    {
+                      "--dock-size": `${s.dockHoverSize}px`,
+                    } as React.CSSProperties
+                  }
+                >
+                  <div>
+                    <QuotaOrb
+                      agent={data.agents[0]}
+                      settings={s}
+                      active={false}
+                      onHover={() => {}}
+                      onLeave={() => {}}
+                      onSelect={() => {}}
+                    />
+                    <span>{t("dockSize")}</span>
+                  </div>
+                  <div>
+                    <QuotaOrb
+                      agent={data.agents[0]}
+                      settings={s}
+                      active={false}
+                      magnified
+                      onHover={() => {}}
+                      onLeave={() => {}}
+                      onSelect={() => {}}
+                    />
+                    <span>{t("dockHoverSize")}</span>
+                  </div>
+                </div>
+              )}
               <label>
                 {t("dockSize")} <output>{s.dockSize}px</output>
                 <input
@@ -158,6 +228,36 @@ export function SettingsPanel({
                   }
                 />
               </label>
+              <label className="switch-label">
+                {t("dockLocked")}
+                <input
+                  type="checkbox"
+                  checked={s.dockLocked}
+                  onChange={(e) => update("dockLocked", e.target.checked)}
+                />
+              </label>
+              <label>
+                {t("dockEdgeInset")} <output>{s.dockEdgeInset}px</output>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  value={s.dockEdgeInset}
+                  onChange={(e) =>
+                    update("dockEdgeInset", Number(e.target.value))
+                  }
+                />
+              </label>
+              {onResetDock && (
+                <button
+                  className="secondary-button"
+                  onClick={() =>
+                    void onResetDock().catch((e) => setError(String(e)))
+                  }
+                >
+                  {t("resetDockPosition")}
+                </button>
+              )}
               <p className="field-hint">{t("dockLiveHint")}</p>
             </>
           )}

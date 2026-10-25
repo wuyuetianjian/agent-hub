@@ -92,3 +92,27 @@ fn drag_snaps_to_closest_edge_of_offset_monitor() {
     assert_eq!(nearest_dock_side(d, 1500.0, 52.0), "left");
     assert_eq!(nearest_dock_side(d, 3200.0, 52.0), "right");
 }
+#[test]
+fn independent_panel_fits_monitor_without_changing_dock_bounds() {
+    use agent_orbit::window_state::panel_bounds;
+    let dock = Bounds {
+        x: 1390.0,
+        y: 100.0,
+        width: 50.0,
+        height: 440.0,
+    };
+    let panel = panel_bounds(display(), dock, 360.0, 300.0, "right", 8.0, 50.0);
+    assert_eq!(panel.x + panel.width + 8.0, dock.x);
+    assert_eq!(panel.y, 0.0);
+    let left = panel_bounds(
+        display(),
+        Bounds { x: 0.0, ..dock },
+        360.0,
+        1200.0,
+        "left",
+        8.0,
+        300.0,
+    );
+    assert_eq!(left.x, 58.0);
+    assert!(left.height <= 900.0);
+}

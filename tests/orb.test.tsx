@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { renderToStaticMarkup } from "react-dom/server";
 import { QuotaOrb } from "../src/components/QuotaOrb";
 import { SettingsPanel } from "../src/components/SettingsPanel";
+import { DockDetails } from "../src/components/DockDetails";
 import { AgentDock } from "../src/components/AgentDock";
 import { translator } from "../src/i18n";
 import defaults from "../config/defaults.json";
@@ -184,7 +185,63 @@ test("dock settings expose separate resting and hover size controls", () => {
       onSave={async () => {}}
     />,
   );
-  assert.match(html, /aria-label="Resting size"/);
-  assert.match(html, /aria-label="Hover size"/);
+  assert.match(html, /aria-label="Normal icon size"/);
+  assert.match(html, /aria-label="Icon size on hover"/);
   assert.match(html, /Changes apply immediately/);
+});
+
+test("resting orb contains no percentage text badge that can cover the icon", () => {
+  const html = renderToStaticMarkup(
+    <QuotaOrb
+      agent={agent(38)}
+      settings={settings}
+      active={false}
+      onHover={() => {}}
+      onLeave={() => {}}
+      onSelect={() => {}}
+    />,
+  );
+  assert.ok(!html.includes('class="orb-percentage"'));
+  assert.ok(html.includes('aria-valuenow="38"'));
+});
+
+test("hover details show the remaining percentage and account without an orb badge", () => {
+  const html = renderToStaticMarkup(
+    <DockDetails
+      current={agent(38)}
+      s={settings}
+      requests={[]}
+      sessions={[]}
+      t={translator("en")}
+      busy={[]}
+      now={Date.now() / 1000}
+      onClose={() => {}}
+      onDetails={() => {}}
+      onRefresh={() => {}}
+      onSessions={() => {}}
+      onRespond={async () => {}}
+    />,
+  );
+  assert.match(html, /38%/);
+  assert.match(html, /remaining/);
+  assert.match(html, /Work account/);
+  assert.ok(!html.includes("orb-percentage"));
+});
+
+test("magnification changes only the target transform while preserving its normal size", () => {
+  const html = renderToStaticMarkup(
+    <QuotaOrb
+      agent={agent(38)}
+      settings={settings}
+      active={false}
+      magnified
+      onHover={() => {}}
+      onLeave={() => {}}
+      onSelect={() => {}}
+    />,
+  );
+  assert.ok(html.includes(`--orb-rest-size:${settings.dockSize}px`));
+  assert.ok(
+    html.includes(`--orb-scale:${settings.dockHoverSize / settings.dockSize}`),
+  );
 });

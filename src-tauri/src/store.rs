@@ -56,6 +56,11 @@ impl Store {
                     .unwrap_or(defaults.dock_size);
                 saved["dockHoverSize"] = defaults.dock_hover_size.max(size).into();
             }
+            if saved.get("dockLocked").is_none()
+                && saved.get("dockEdgeInset").and_then(|v| v.as_f64()) == Some(12.0)
+            {
+                saved["dockEdgeInset"] = defaults.dock_edge_inset.into();
+            }
             crate::config::merge(&mut value, saved);
         }
         Ok(serde_json::from_value(value)?)

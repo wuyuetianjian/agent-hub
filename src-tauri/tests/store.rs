@@ -65,7 +65,7 @@ fn legacy_dock_defaults_migrate_without_losing_other_preferences() {
     let db = rusqlite::Connection::open(&path).unwrap();
     db.execute(
         "INSERT INTO settings(id,value) VALUES(1,?1)",
-        [r#"{"dockSize":60,"locale":"en","dockSide":"left"}"#],
+        [r#"{"dockSize":60,"locale":"en","dockSide":"left","dockEdgeInset":12}"#],
     )
     .unwrap();
     let settings = store.load_settings(&cfg.settings).unwrap();
@@ -73,14 +73,16 @@ fn legacy_dock_defaults_migrate_without_losing_other_preferences() {
     assert!(settings.dock_hover_size >= settings.dock_size);
     assert_eq!(settings.locale, "en");
     assert_eq!(settings.dock_side, "left");
+    assert_eq!(settings.dock_edge_inset, cfg.settings.dock_edge_inset);
     db.execute(
         "UPDATE settings SET value=?1 WHERE id=1",
-        [r#"{"dockSize":80}"#],
+        [r#"{"dockSize":80,"dockEdgeInset":28}"#],
     )
     .unwrap();
     let custom = store.load_settings(&cfg.settings).unwrap();
     assert_eq!(custom.dock_size, 80.0);
     assert_eq!(custom.dock_hover_size, 80.0);
+    assert_eq!(custom.dock_edge_inset, 28.0);
 }
 #[test]
 fn dock_sizes_are_persisted_and_invalid_hover_size_is_rejected() {
@@ -89,9 +91,11 @@ fn dock_sizes_are_persisted_and_invalid_hover_size_is_rejected() {
     let store = Store::open(&t.path().join("sizes.db"), &cfg).unwrap();
     let mut settings = cfg.settings.clone();
     settings.dock_size = 28.0;
+    settings.dock_locked = true;
     settings.dock_hover_size = 48.0;
     store.save_settings(&settings).unwrap();
     let loaded = store.load_settings(&cfg.settings).unwrap();
+    assert!(loaded.dock_locked);
     assert_eq!((loaded.dock_size, loaded.dock_hover_size), (28.0, 48.0));
     settings.dock_hover_size = 20.0;
     assert!(store.save_settings(&settings).is_err());

@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useState, lazy, Suspense } from "react";
+import {
+  useCallback,
+  useEffect,
+  useState,
+  useRef,
+  lazy,
+  Suspense,
+} from "react";
 import {
   Orbit,
   Pin,
@@ -32,6 +39,8 @@ import type {
 import { translator } from "./i18n";
 import { ExternalSession } from "./components/ExternalSession";
 import { AgentDock } from "./components/AgentDock";
+import { DockDetails } from "./components/DockDetails";
+import { requestsForProfile } from "./lib/dock";
 import { dockAgents as getDockAgents } from "./lib/dock";
 import { AgentIcon } from "./components/AgentIcon";
 import { QuotaCard } from "./components/QuotaCard";
@@ -46,6 +55,7 @@ const Terminal = lazy(() =>
 const workspaceWindow = new URLSearchParams(window.location.search).has(
   "workspace",
 );
+const panelWindow = new URLSearchParams(window.location.search).has("panel");
 type Page = "overview" | "agents" | "sessions" | "approvals" | "settings";
 export default function App() {
   const [data, setData] = useState<Dashboard | null>(null);
@@ -55,8 +65,30 @@ export default function App() {
   >({});
   const updateApprovalDraft = (id: string, draft: ApprovalDraft) =>
     setApprovalDrafts((current) => ({ ...current, [id]: draft }));
-  const [dockOpen, setDockOpen] = useState(false);
-  const [dockHovered, setDockHovered] = useState(false);
+  const [, setDockOpen] = useState(false);
+  const [panelTarget, setPanelTarget] = useState<{
+    profileId: string;
+    pinned: boolean;
+  } | null>(null);
+  const [panelPresence, setPanelPresence] = useState<{
+    inside: boolean;
+    dismiss?: boolean;
+    togglePin?: boolean;
+    sequence: number;
+  }>({ inside: false, sequence: 0 });
+  const panelRoot = useRef<HTMLDivElement>(null);
+  const dragQueue = useRef(Promise.resolve());
+  const panelRequestQueue = useRef(Promise.resolve());
+  const setPanel = useCallback(
+    (target: { profileId: string | null; anchor: number; pinned: boolean }) => {
+      if (!isDesktop || panelWindow || workspaceWindow) return;
+      panelRequestQueue.current = panelRequestQueue.current
+        .catch(() => {})
+        .then(() => call<void>("set_dock_panel", target))
+        .catch((e) => setError(String(e)));
+    },
+    [],
+  );
   const [page, setPage] = useState<Page>("overview");
   const [selected, setSelected] = useState<string | null>(null);
   const [busy, setBusy] = useState<string[]>([]);
@@ -124,6 +156,48 @@ export default function App() {
       off?.();
     };
   }, []);
+  useEffect(() => {
+    if (!isDesktop || workspaceWindow) return;
+    let disposed = false;
+    let off: (() => void) | undefined;
+    const topic = panelWindow ? "orbit:dock-panel" : "orbit:panel-presence";
+    void listen<any>(topic, (event) => {
+      if (panelWindow) setPanelTarget(event.payload);
+      else
+        setPanelPresence((current) => ({
+          ...event.payload,
+          sequence: current.sequence + 1,
+        }));
+    }).then((fn) => {
+      if (disposed) fn();
+      else {
+        off = fn;
+        if (panelWindow)
+          void call<{ profileId: string; pinned: boolean } | null>(
+            "get_dock_panel",
+          ).then(setPanelTarget);
+      }
+    });
+    return () => {
+      disposed = true;
+      off?.();
+    };
+  }, []);
+  useEffect(() => {
+    if (!panelWindow || !panelRoot.current || !panelTarget) return;
+    const observer = new ResizeObserver((entries) => {
+      const height = Math.ceil(
+        entries[0].target.getBoundingClientRect().height,
+      );
+      if (height > 0)
+        void call("resize_dock_panel", {
+          height,
+          profileId: panelTarget.profileId,
+        }).catch((e) => setError(String(e)));
+    });
+    observer.observe(panelRoot.current);
+    return () => observer.disconnect();
+  }, [panelTarget?.profileId, Boolean(data)]);
   const mode = data?.settings.windowMode;
   const compact = data?.settings.compact;
   const island = mode === "island" && !expanded;
@@ -142,18 +216,14 @@ export default function App() {
       ? selected
         ? "detail"
         : "widget"
-      : dockOpen
-        ? "dockDetail"
-        : "dock";
+      : "dock";
   useEffect(() => {
-    if (data && !workspaceWindow)
+    if (data && !workspaceWindow && !panelWindow)
       void call("set_window_view", {
         view: nativeView,
-        hovered: dockHovered,
       }).catch((e) => setError(String(e)));
   }, [
     nativeView,
-    dockHovered,
     data?.settings.dockHoverSize,
     mode,
     compact,
@@ -264,7 +334,7 @@ export default function App() {
     if (sessionId !== undefined) setSession(sessionId);
     setExpanded(true);
     setPage(p);
-    setSelected(null);
+    setSelected(profileId ?? null);
   }
   const detail = (agent: AgentView) => (
     <AgentDetail
@@ -313,6 +383,74 @@ export default function App() {
       )}
     </div>
   );
+  if (panelWindow) {
+    const current = data.agents.find(
+      (a) => a.profile.id === panelTarget?.profileId,
+    );
+    const now = Date.now() / 1000;
+    const presence = (inside: boolean, dismiss = false, togglePin = false) => {
+      void call("dock_panel_pointer", { inside, dismiss, togglePin });
+    };
+    return (
+      <div
+        data-theme={theme}
+        className="detached-panel-root"
+        ref={panelRoot}
+        onMouseEnter={() => presence(true)}
+        onMouseLeave={() => presence(false)}
+        onFocusCapture={() => presence(true)}
+        onBlurCapture={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget))
+            presence(false);
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") {
+            event.stopPropagation();
+            presence(false, true);
+          }
+        }}
+      >
+        {current && (
+          <div
+            className="dock-popover detached-popover"
+            style={{ maxHeight: data.settings.dockPopupHeight }}
+          >
+            <DockDetails
+              current={current}
+              s={data.settings}
+              requests={requestsForProfile(
+                current.profile.id,
+                data.sessions,
+                data.interactions.filter((r) => r.expiresAt > now),
+              )}
+              sessions={data.sessions}
+              drafts={approvalDrafts}
+              onDraftChange={updateApprovalDraft}
+              t={t}
+              busy={busy}
+              now={now}
+              pinned={panelTarget?.pinned}
+              onPin={() => presence(true, false, true)}
+              onClose={() => presence(false, true)}
+              onDetails={(id) => openPage("agents", id)}
+              onRefresh={(id) => void refresh(id)}
+              onSessions={(id) =>
+                openPage(
+                  "sessions",
+                  id,
+                  data.sessions.find((session) => session.profileId === id)?.id,
+                )
+              }
+              onRespond={async (id, reply) => {
+                await call("respond", { requestId: id, reply });
+                await load();
+              }}
+            />
+          </div>
+        )}
+      </div>
+    );
+  }
   return (
     <div
       className={`app-frame ${expanded ? "expanded-frame" : ""} ${dock ? "dock-frame" : ""} ${!isDesktop ? "preview-frame" : ""}`}
@@ -326,9 +464,20 @@ export default function App() {
           t={t}
           busy={busy}
           onPanelChange={setDockOpen}
-          onHoverChange={setDockHovered}
-          onDrag={() => {
-            void call("drag_dock").catch((e) => setError(String(e)));
+          detached={isDesktop}
+          onPanelTarget={setPanel}
+          panelPresence={panelPresence}
+          onDrag={(phase, delta) => {
+            const command =
+              phase === "begin"
+                ? "drag_dock"
+                : phase === "move"
+                  ? "move_dock"
+                  : "finish_dock_drag";
+            dragQueue.current = dragQueue.current
+              .catch(() => {})
+              .then(() => call<void>(command, delta))
+              .catch((e) => setError(String(e)));
           }}
           onRefresh={(id) => void refresh(id)}
           onDetails={(id) => openPage("agents", id)}
@@ -550,6 +699,7 @@ export default function App() {
                       detail(chosen)
                     ) : page === "settings" ? (
                       <SettingsPanel
+                        onResetDock={() => call<void>("reset_dock_position")}
                         key={data.settings.locale}
                         data={data}
                         t={t}
