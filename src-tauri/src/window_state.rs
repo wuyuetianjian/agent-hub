@@ -51,3 +51,42 @@ pub fn restore(saved: Option<Bounds>, desired: (f64, f64), displays: &[Bounds]) 
         height,
     }
 }
+pub fn dock_bounds(display: Bounds, width: f64, height: f64, side: &str, inset: f64) -> Bounds {
+    let inset = inset
+        .max(0.0)
+        .min(display.width / 4.0)
+        .min(display.height / 4.0);
+    let width = width.min(display.width - 2.0 * inset);
+    let height = height.min(display.height - 2.0 * inset);
+    Bounds {
+        x: if side == "left" {
+            display.x + inset
+        } else {
+            display.x + display.width - inset - width
+        },
+        y: display.y + (display.height - height) / 2.0,
+        width,
+        height,
+    }
+}
+pub fn dock_bounds_at(
+    display: Bounds,
+    width: f64,
+    height: f64,
+    side: &str,
+    inset: f64,
+    vertical: Option<f64>,
+) -> Bounds {
+    let mut bounds = dock_bounds(display, width, height, side, inset);
+    let inset = inset
+        .max(0.0)
+        .min(display.width / 4.0)
+        .min(display.height / 4.0);
+    if let Some(y) = vertical.filter(|y| y.is_finite()) {
+        bounds.y = y.clamp(
+            display.y + inset,
+            display.y + display.height - inset - bounds.height,
+        );
+    }
+    bounds
+}

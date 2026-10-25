@@ -66,6 +66,18 @@ pub fn validate_settings(s: &crate::model::Settings) -> Result<()> {
     if s.max_output_bytes < 4096 || s.max_output_bytes > 8 * 1024 * 1024 {
         bail!("Invalid terminal output limit");
     }
+    if !["left", "right"].contains(&s.dock_side.as_str())
+        || !(36.0..=96.0).contains(&s.dock_size)
+        || !(0.0..=32.0).contains(&s.dock_gap)
+        || !(4.0..=32.0).contains(&s.dock_padding)
+        || !(280.0..=520.0).contains(&s.dock_panel_width)
+        || !(0.0..=100.0).contains(&s.dock_edge_inset)
+        || !(80..=1000).contains(&s.dock_hover_delay_ms)
+        || !(32.0..=128.0).contains(&s.dock_chrome_height)
+        || !(360.0..=1000.0).contains(&s.dock_popup_height)
+    {
+        bail!("Invalid side dock settings");
+    }
     if !["floating", "island"].contains(&s.window_mode.as_str())
         || !["shortest", "lowest"].contains(&s.summary_policy.as_str())
     {

@@ -5,7 +5,7 @@ html,
 body,
 #root {
   margin: 0;
-  min-width: 320px;
+  min-width: 0;
   height: 100%;
   font-family:
     "Avenir Next", "Segoe UI", "PingFang SC", "Noto Sans CJK SC", sans-serif;
@@ -1470,4 +1470,400 @@ input[type="radio"] {
   color: var(--faint);
   font-size: 9px;
   white-space: nowrap;
+}
+/* Edge dock: only the individual orbs have a background. */
+.dock-frame {
+  background: transparent;
+  overflow: hidden;
+}
+.dock-frame.preview-frame {
+  justify-content: flex-end;
+  align-items: center;
+  min-height: 100vh;
+  padding: 0 16px;
+}
+.agent-dock {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+}
+.preview-frame .agent-dock {
+  width: calc(
+    var(--dock-rail-width) + var(--dock-panel-width) + var(--dock-gap)
+  );
+  height: min(850px, 100vh);
+  min-height: 580px;
+  flex-shrink: 0;
+}
+.dock-rail {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: var(--dock-rail-width);
+  padding: var(--dock-padding);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-height: 100%;
+  z-index: 2;
+  user-select: none;
+}
+.side-right .dock-rail {
+  right: 0;
+}
+.side-left .dock-rail {
+  left: 0;
+}
+.dock-drag-handle {
+  height: calc(var(--dock-chrome-height) * 0.25);
+  min-height: calc(var(--dock-chrome-height) * 0.25);
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: var(--faint);
+  opacity: 0.35;
+  cursor: grab;
+}
+.dock-drag-handle:hover {
+  opacity: 0.9;
+}
+.dock-orbs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dock-gap);
+  overflow: auto;
+  min-height: 0;
+  scrollbar-width: none;
+  padding: 3px 0;
+}
+.dock-orbs::-webkit-scrollbar {
+  display: none;
+}
+.dock-orbs > div {
+  flex-shrink: 0;
+}
+.dock-orb {
+  width: var(--dock-size);
+  height: var(--dock-size);
+  display: grid;
+  place-items: center;
+  position: relative;
+  padding: 0;
+  isolation: isolate;
+  flex-shrink: 0;
+  border-radius: 50%;
+  outline-offset: 5px;
+}
+.dock-orb-core {
+  position: absolute;
+  inset: 6px;
+  background: color-mix(in srgb, var(--bg) 94%, transparent);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  box-shadow:
+    0 3px 14px #0004,
+    inset 0 1px 1px #ffffff12;
+  transition:
+    background 0.15s,
+    transform 0.15s;
+}
+.dock-orb:hover .dock-orb-core,
+.dock-orb.active .dock-orb-core {
+  background: var(--surface2);
+  transform: scale(1.035);
+}
+.dock-orb .agent-icon {
+  background: none;
+  border: none;
+  border-radius: 50%;
+}
+.orb-ring {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+  transform: rotate(-90deg);
+}
+.orb-ring circle {
+  fill: none;
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+.orb-ring-track {
+  stroke: color-mix(in srgb, var(--ink) 13%, var(--bg));
+}
+.orb-ring-value {
+  stroke: var(--orb-color);
+  transition: stroke-dashoffset 0.45s ease;
+}
+.orb-ring.unknown .orb-ring-value {
+  stroke: var(--faint);
+  opacity: 0.5;
+}
+.dock-orb.stale .orb-ring-value {
+  opacity: 0.4;
+}
+.orb-percentage {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  z-index: 2;
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 16px;
+  padding: 0 4px;
+  min-width: 19px;
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--strong-line);
+  border-radius: 6px;
+  box-shadow: 0 2px 5px #0003;
+  letter-spacing: -0.04em;
+}
+.orb-request-count {
+  position: absolute;
+  right: 0;
+  top: 0;
+  z-index: 3;
+  background: var(--warning);
+  color: #251d12;
+  border: 2px solid var(--bg);
+  border-radius: 50%;
+  min-width: 17px;
+  height: 17px;
+  display: grid;
+  place-items: center;
+  font-size: 9px;
+  font-weight: 700;
+  box-shadow: 0 0 12px #e9b47950;
+}
+.dock-orb.has-request .orb-ring {
+  filter: drop-shadow(0 0 4px #e9b47955);
+}
+.dock-controls {
+  height: calc(var(--dock-chrome-height) * 0.75);
+  min-height: calc(var(--dock-chrome-height) * 0.75);
+  display: grid;
+  place-items: center;
+  width: 100%;
+}
+.dock-settings {
+  width: calc(var(--dock-size) * 0.58);
+  height: calc(var(--dock-size) * 0.58);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--bg) 85%, transparent);
+  border: 1px solid var(--strong-line);
+  box-shadow: 0 2px 10px #0003;
+  color: var(--muted);
+}
+.dock-settings:hover {
+  color: var(--accent);
+  background: var(--surface2);
+}
+.dock-popover {
+  position: absolute;
+  width: min(
+    var(--dock-panel-width),
+    calc(100% - var(--dock-rail-width) - var(--dock-gap))
+  );
+  min-width: 0;
+  background: var(--bg);
+  border: 1px solid var(--strong-line);
+  border-radius: 14px;
+  box-shadow: 0 14px 45px #0005;
+  overflow: auto;
+  overscroll-behavior: contain;
+  z-index: 3;
+}
+.side-right .dock-popover {
+  right: calc(var(--dock-rail-width) + var(--dock-gap));
+}
+.side-left .dock-popover {
+  left: calc(var(--dock-rail-width) + var(--dock-gap));
+}
+.dock-popover:before {
+  content: "";
+  position: absolute;
+  top: var(--dock-arrow-top);
+  height: 12px;
+  width: 4px;
+  border-radius: 3px;
+  background: var(--accent);
+  opacity: 0.5;
+  transform: translateY(-50%);
+}
+.side-right .dock-popover:before {
+  right: 0;
+}
+.side-left .dock-popover:before {
+  left: 0;
+}
+.dock-popover-header {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 13px 12px;
+  border-bottom: 1px solid var(--line);
+}
+.dock-popover-header > div {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.dock-popover-header strong {
+  font-size: 12px;
+  font-weight: 600;
+}
+.dock-popover-header > div > span {
+  font-size: 9px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dock-popover-header .icon-button {
+  height: 24px;
+  width: 24px;
+}
+.dock-quota-details {
+  padding: 13px 15px 8px;
+}
+.dock-status {
+  font-size: 9px;
+  color: var(--faint);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 6px;
+}
+.dock-status:before {
+  content: "";
+  width: 4px;
+  height: 4px;
+  background: var(--faint);
+  border-radius: 50%;
+}
+.dock-status.ready {
+  color: var(--accent);
+}
+.dock-status.ready:before {
+  background: var(--accent);
+}
+.dock-quota-window {
+  padding: 12px 0 10px;
+  border-bottom: 1px solid var(--line);
+}
+.dock-quota-window > div:first-child {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
+}
+.dock-quota-window strong {
+  font-family: monospace;
+  font-size: 16px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.dock-quota-window strong small {
+  font-size: 9px;
+  color: var(--muted);
+  font-weight: 400;
+  font-family: inherit;
+}
+.dock-quota-window .quota-track {
+  margin-top: 9px;
+}
+.dock-quota-window p {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  font-size: 9px;
+  color: var(--faint);
+  margin-top: 8px;
+}
+.dock-empty-quota {
+  padding: 15px 0;
+  font-size: 10px;
+  color: var(--muted);
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+}
+.dock-quota-details > footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding-top: 8px;
+  font-size: 8px;
+  color: var(--faint);
+}
+.dock-sessions-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  color: var(--muted);
+  width: 100%;
+  padding: 9px 0 5px;
+}
+.dock-sessions-link > span {
+  margin-left: auto;
+  font-family: monospace;
+  color: var(--faint);
+}
+.dock-sessions-link:hover {
+  color: var(--accent);
+}
+.dock-approval-list {
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.dock-approval-list .approval-card {
+  padding: 12px;
+  background: var(--surface);
+  border-radius: 9px;
+}
+.dock-approval-list .approval-card > header {
+  display: flex;
+}
+.dock-approval-list .approval-card > header .agent-icon,
+.dock-approval-list .approval-card > header > div > strong {
+  display: none;
+}
+.dock-approval-list .approval-card > header > div > span {
+  color: var(--ink);
+  font-weight: 600;
+}
+.dock-approval-list .approval-context {
+  margin-top: 1px;
+  font-size: 9px;
+}
+.dock-approval-list .approval-actions button {
+  flex: 1;
+  white-space: normal;
+  min-width: 85px;
+}
+.dock-approval-list .approval-card pre {
+  max-height: 160px;
+}
+.dock-frame .toast {
+  left: auto;
+  right: var(--dock-rail-width, 85px);
+  transform: none;
+  max-width: 330px;
+  bottom: 10px;
 }

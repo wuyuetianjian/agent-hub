@@ -22,6 +22,15 @@ export interface Settings {
   warningPercent: number;
   alwaysOnTop: boolean;
   compact: boolean;
+  dockSide: "left" | "right";
+  dockSize: number;
+  dockGap: number;
+  dockPadding: number;
+  dockPanelWidth: number;
+  dockEdgeInset: number;
+  dockHoverDelayMs: number;
+  dockChromeHeight: number;
+  dockPopupHeight: number;
   startAtLogin: boolean;
   visibleProviders: string[];
   windowWidth: number;

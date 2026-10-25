@@ -3,18 +3,37 @@ import { useState } from "react";
 import type { Interaction, Reply, Provider } from "../types";
 import type { T } from "../i18n";
 import { AgentIcon } from "./AgentIcon";
+export type ApprovalDraft = {
+  answers: Record<string, string[]>;
+  freeText: Record<string, string>;
+};
 export function ApprovalCard({
   request,
   provider,
   t,
   onRespond,
+  expandedDetails = false,
+  draft,
+  onDraftChange,
 }: {
   request: Interaction;
   provider?: Provider;
   t: T;
   onRespond: (reply: Reply) => Promise<void>;
+  expandedDetails?: boolean;
+  draft?: ApprovalDraft;
+  onDraftChange?: (draft: ApprovalDraft) => void;
 }) {
-  const [answers, setAnswers] = useState<Record<string, string[]>>({});
+  const [localDraft, setLocalDraft] = useState<ApprovalDraft>({
+    answers: {},
+    freeText: {},
+  });
+  const currentDraft = draft ?? localDraft;
+  const { answers } = currentDraft;
+  const updateDraft = (next: ApprovalDraft) => {
+    setLocalDraft(next);
+    onDraftChange?.(next);
+  };
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   async function submit(reply: Reply) {
@@ -48,7 +67,7 @@ export function ApprovalCard({
         <span title={request.cwd}>{request.cwd}</span>
         <small>{request.sessionId.slice(0, 8)}</small>
       </div>
-      <details>
+      <details open={expandedDetails || undefined}>
         <summary>
           {t("details")}
           <ChevronDown size={13} />
@@ -65,14 +84,17 @@ export function ApprovalCard({
                 name={`${request.id}-${q.id}`}
                 checked={(answers[q.id] || []).includes(o.id)}
                 onChange={() =>
-                  setAnswers((current) => ({
-                    ...current,
-                    [q.id]: q.multiple
-                      ? (current[q.id] || []).includes(o.id)
-                        ? current[q.id].filter((x) => x !== o.id)
-                        : [...(current[q.id] || []), o.id]
-                      : [o.id],
-                  }))
+                  updateDraft({
+                    freeText: { ...currentDraft.freeText, [q.id]: "" },
+                    answers: {
+                      ...answers,
+                      [q.id]: q.multiple
+                        ? (answers[q.id] || []).includes(o.id)
+                          ? answers[q.id].filter((x) => x !== o.id)
+                          : [...(answers[q.id] || []), o.id]
+                        : [o.id],
+                    },
+                  })
                 }
               />
               {o.label}
@@ -81,8 +103,15 @@ export function ApprovalCard({
           <input
             className="text-input"
             placeholder={t("other")}
+            value={currentDraft.freeText[q.id] || ""}
             onChange={(e) =>
-              setAnswers((a) => ({ ...a, [q.id]: [e.target.value] }))
+              updateDraft({
+                answers: {
+                  ...answers,
+                  [q.id]: e.target.value ? [e.target.value] : [],
+                },
+                freeText: { ...currentDraft.freeText, [q.id]: e.target.value },
+              })
             }
           />
         </fieldset>

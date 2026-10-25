@@ -97,6 +97,20 @@ export function SettingsPanel({
               )}
             </select>
           </label>
+          {s.windowMode === "floating" && (
+            <label>
+              {t("dockSide")}
+              <select
+                value={s.dockSide}
+                onChange={(e) =>
+                  update("dockSide", e.target.value as Settings["dockSide"])
+                }
+              >
+                <option value="right">{t("right")}</option>
+                <option value="left">{t("left")}</option>
+              </select>
+            </label>
+          )}
           {data.platform === "macos" && (
             <p className="field-hint">{t("islandHint")}</p>
           )}

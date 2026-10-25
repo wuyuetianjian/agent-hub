@@ -136,7 +136,15 @@ fn respond(
 fn save_geometry(app: &tauri::AppHandle, runtime: &Runtime) {
     let native = app.state::<NativeState>();
     let view = native.view.lock().unwrap().clone();
-    if let Some((view, false)) = view {
+    if let Some((view, transient)) =
+        view.filter(|(view, transient)| !transient || view.starts_with("dock"))
+    {
+        let _ = transient;
+        let view = if view.starts_with("dock") {
+            "dock".to_string()
+        } else {
+            view
+        };
         if let Some(window) = app.get_webview_window("main") {
             if let (Ok(position), Ok(size), Ok(scale)) = (
                 window.inner_position(),
@@ -157,12 +165,93 @@ fn save_geometry(app: &tauri::AppHandle, runtime: &Runtime) {
     }
 }
 fn layout(app: &tauri::AppHandle, runtime: &Runtime, view: &str) -> CommandResult<()> {
-    if !["widget", "workspace", "detail"].contains(&view) {
+    if !["widget", "workspace", "detail", "dock", "dockDetail"].contains(&view) {
         return Err("Unknown window view".into());
     }
     let window = app.get_webview_window("main").ok_or("Window unavailable")?;
     save_geometry(app, runtime);
     let s = runtime.settings.read().unwrap().clone();
+    let view = if view == "widget" && s.window_mode == "floating" {
+        "dock"
+    } else {
+        view
+    };
+    if view == "dock" || view == "dockDetail" {
+        let sessions = runtime.sessions.list();
+        let pending = runtime.broker.list();
+        let pending_profiles: std::collections::HashSet<_> = sessions
+            .iter()
+            .filter(|session| pending.iter().any(|r| r.session_id == session.id))
+            .map(|s| s.profile_id.as_str())
+            .collect();
+        let count = runtime
+            .store
+            .profiles()
+            .map_err(error)?
+            .iter()
+            .filter(|p| {
+                (p.enabled && s.visible_providers.contains(&p.provider_id))
+                    || pending_profiles.contains(p.id.as_str())
+            })
+            .count();
+        let rail_width = s.dock_size + 2.0 * s.dock_padding;
+        let height = (2.0 * s.dock_padding
+            + count as f64 * s.dock_size
+            + count.saturating_sub(1) as f64 * s.dock_gap
+            + s.dock_chrome_height)
+            .max(s.dock_popup_height);
+        let width = rail_width
+            + if view == "dockDetail" {
+                s.dock_gap + s.dock_panel_width
+            } else {
+                0.0
+            };
+        if let Some(m) = window
+            .current_monitor()
+            .ok()
+            .flatten()
+            .or(window.primary_monitor().ok().flatten())
+        {
+            let scale = m.scale_factor();
+            let display = Bounds {
+                x: m.position().x as f64 / scale,
+                y: m.position().y as f64 / scale,
+                width: m.size().width as f64 / scale,
+                height: m.size().height as f64 / scale,
+            };
+            let bounds = crate::window_state::dock_bounds_at(
+                display,
+                width,
+                height,
+                &s.dock_side,
+                s.dock_edge_inset,
+                runtime
+                    .store
+                    .window_bounds("dock")
+                    .ok()
+                    .flatten()
+                    .map(|b| b.y),
+            );
+            let _ = window.set_min_size(Some(LogicalSize::new(64.0, 80.0)));
+            window
+                .set_size(LogicalSize::new(bounds.width, bounds.height))
+                .map_err(error)?;
+            let _ = window.set_position(LogicalPosition::new(bounds.x, bounds.y));
+        } else {
+            window
+                .set_size(LogicalSize::new(width, height))
+                .map_err(error)?;
+        }
+        let _ = window.set_shadow(false);
+        let _ = window.set_resizable(false);
+        let _ = window.set_always_on_top(s.always_on_top);
+        *app.state::<NativeState>().view.lock().unwrap() = Some((view.into(), true));
+        window.show().map_err(error)?;
+        return Ok(());
+    }
+    let _ = window.set_shadow(true);
+    let _ = window.set_min_size(Some(LogicalSize::new(360.0, 80.0)));
+    let _ = window.set_resizable(true);
     let island = s.window_mode == "island" && view != "workspace";
     let desired = if view == "workspace" {
         (s.expanded_width, s.expanded_height)

@@ -43,3 +43,40 @@ fn oversized_windows_fit_the_display() {
     assert_eq!(result.width, 1440.0);
     assert_eq!(result.height, 900.0);
 }
+#[test]
+fn expanding_right_dock_preserves_its_screen_edge() {
+    let a = agent_orbit::window_state::dock_bounds(display(), 80.0, 580.0, "right", 12.0);
+    let b = agent_orbit::window_state::dock_bounds(display(), 452.0, 580.0, "right", 12.0);
+    assert_eq!(a.x + a.width, b.x + b.width);
+    assert_eq!(a.x + a.width, 1428.0);
+    assert_eq!(a.y, b.y);
+}
+#[test]
+fn left_dock_expands_inward_and_fits_small_screens() {
+    let a = agent_orbit::window_state::dock_bounds(display(), 80.0, 580.0, "left", 12.0);
+    let b = agent_orbit::window_state::dock_bounds(display(), 452.0, 1200.0, "left", 12.0);
+    assert_eq!(a.x, 12.0);
+    assert_eq!(a.x, b.x);
+    assert!(b.y >= 0.0 && b.y + b.height <= 900.0);
+}
+#[test]
+fn dragged_dock_height_survives_hover_expansion() {
+    let a = agent_orbit::window_state::dock_bounds_at(
+        display(),
+        80.0,
+        580.0,
+        "right",
+        12.0,
+        Some(40.0),
+    );
+    let b = agent_orbit::window_state::dock_bounds_at(
+        display(),
+        452.0,
+        580.0,
+        "right",
+        12.0,
+        Some(a.y),
+    );
+    assert_eq!(a.y, 40.0);
+    assert_eq!(b.y, 40.0);
+}

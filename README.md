@@ -5,6 +5,8 @@
 跨平台桌面 Agent 额度悬浮工具，使用 Tauri 2、React、Rust 和 SQLite。提供普通悬浮窗、macOS 可选灵动岛样式、账号详情、交互终端和确认中心。
 
 - 14 个 Agent 入口及离线图标；点击图标查看账号和全部额度周期。
+- 侧边设置：在设置中切换左侧/右侧；`dockSize`、`dockGap`、`dockPadding`、`dockPanelWidth`、`dockEdgeInset`、`dockHoverDelayMs`、`dockChromeHeight`、`dockPopupHeight` 可通过设置配置覆盖。
+- v0.1.2：默认采用左右侧边竖排圆环，中心显示 AI 图标、外圈显示剩余额度比例；悬停展开详情，交互确认在对应 AI 旁弹出。支持拖动纵向位置，切换详情保留未提交回答。未知额度显示“—”。
 - v0.1.1：支持 NVM/Homebrew/桌面内置 CLI 探测，以及 Codex CLI/桌面端已有会话记录；会话入口和账号详情显示相关记录。
 - 摘要默认显示最短周期的剩余额度，例如优先显示 5 小时额度；也可选择剩余比例最低的周期。
 - Codex、Claude Code、Gemini CLI、GitHub Copilot 已实现内置额度读取路径；账号资格和凭据格式会影响可用性。
@@ -47,6 +49,8 @@ Claude Code、Codex、Gemini CLI、Google Antigravity、Cursor、GitHub Copilot�
 A desktop agent quota companion built with Tauri 2, React, Rust and SQLite. It includes a floating widget, an optional macOS Dynamic Island-style layout, account details, interactive terminals and an approval inbox.
 
 - Fourteen agent entries with offline icons; click an icon for account details and all quota windows.
+- Dock configuration: choose left/right in Settings; override `dockSize`, `dockGap`, `dockPadding`, `dockPanelWidth`, `dockEdgeInset`, `dockHoverDelayMs`, `dockChromeHeight` and `dockPopupHeight` through settings configuration.
+- v0.1.2 adds a vertical side dock with AI icons, remaining-quota rings, hover details and confirmations beside the originating AI. Vertical position and unsent answers survive detail switches; unknown quota shows “—”.
 - v0.1.1 adds NVM/Homebrew/bundled-CLI discovery and read-only Codex CLI/desktop session records, accessible from the widget and agent details.
 - Summary defaults to the shortest quota period, such as the five-hour allowance. Lowest-known-remaining is also selectable.
 - Built-in quota paths are implemented for Codex, Claude Code, Gemini CLI and GitHub Copilot; account eligibility and credential formats determine availability.
