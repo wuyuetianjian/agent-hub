@@ -1,9 +1,11 @@
 import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
+import { listen as tauriListen } from "@tauri-apps/api/event";
+import { getOverlayBridge, type OverlayEvent } from "./lib/overlay-bridge";
 import defaults from "../config/defaults.json";
 import type { AppEvent, Dashboard, Settings, Profile } from "./types";
 export const isDesktop =
-  typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+  typeof window !== "undefined" &&
+  (Boolean(getOverlayBridge()) || "__TAURI_INTERNALS__" in window);
 let preview: Dashboard = {
   settings: defaults.settings as Settings,
   platform:
@@ -43,7 +45,10 @@ export async function call<T>(
   command: string,
   args: Record<string, unknown> = {},
 ): Promise<T> {
+  const overlay = getOverlayBridge();
+  if (overlay) return overlay.invoke<T>(command, args);
   if (isDesktop) return invoke<T>(command, args);
+  if (command === "get_task_completions") return [] as T;
   if (command === "get_dashboard") return structuredClone(preview) as T;
   if (command === "save_settings") {
     preview = { ...preview, settings: args.settings as Settings };
@@ -87,6 +92,15 @@ export async function call<T>(
     "此操作需要桌面应用 / Launch the desktop app for this action.",
   );
 }
+export async function listen<T>(
+  event: string,
+  callback: (event: OverlayEvent<T>) => void,
+): Promise<() => void> {
+  const overlay = getOverlayBridge();
+  if (overlay) return overlay.listen<T>(event, callback);
+  if (!isDesktop) return () => {};
+  return tauriListen<T>(event, callback);
+}
 export async function onEvent(
   callback: (event: AppEvent) => void,
 ): Promise<() => void> {
@@ -94,6 +108,8 @@ export async function onEvent(
   return listen<AppEvent>("orbit:event", (event) => callback(event.payload));
 }
 export async function chooseDirectory(): Promise<string | null> {
+  if (getOverlayBridge())
+    return call<string | null>("overlay_choose_directory");
   if (!isDesktop) return null;
   const { open } = await import("@tauri-apps/plugin-dialog");
   const selected = await open({ directory: true, multiple: false });
@@ -102,7 +118,9 @@ export async function chooseDirectory(): Promise<string | null> {
 export async function openUrl(url: string) {
   if (!/^https?:\/\//.test(url))
     throw new Error("Only HTTP(S) URLs are supported");
-  if (isDesktop) {
+  if (getOverlayBridge()) {
+    await call("overlay_open_url", { url });
+  } else if (isDesktop) {
     const { openUrl } = await import("@tauri-apps/plugin-opener");
     await openUrl(url);
   } else {

@@ -233,3 +233,15 @@ pub struct AppEvent {
     pub session_id: Option<String>,
     pub data: Value,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TaskCompletion {
+    pub id: String,
+    pub session_id: String,
+    pub turn_id: String,
+    pub profile_id: String,
+    pub profile_label: String,
+    pub cwd: String,
+    pub completed_at: i64,
+}

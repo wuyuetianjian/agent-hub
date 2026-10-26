@@ -1,3 +1,4 @@
+pub mod completion_window;
 pub mod model;
 pub mod quota;
 pub use quota::remaining_percent;
@@ -19,3 +20,12 @@ pub mod store;
 pub mod window_state;
 
 pub mod usage;
+
+pub mod completions;
+
+#[cfg(feature = "desktop")]
+pub mod orbit_window;
+pub mod overlay_protocol;
+#[cfg(all(feature = "desktop", target_os = "macos"))]
+pub mod overlay_transport;
+pub mod overlay_windows;

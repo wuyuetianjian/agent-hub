@@ -27,8 +27,7 @@ import {
   Search,
   CheckCircle2,
 } from "lucide-react";
-import { listen } from "@tauri-apps/api/event";
-import { call, isDesktop, onEvent, openUrl } from "./api";
+import { call, isDesktop, listen, onEvent, openUrl } from "./api";
 import type {
   AgentView,
   Dashboard,
@@ -127,6 +126,38 @@ export default function App() {
   const [selected, setSelected] = useState<string | null>(null);
   const [busy, setBusy] = useState<string[]>([]);
   const [error, setError] = useState("");
+  useEffect(() => {
+    if (!isDesktop || !workspaceWindow) return;
+    let disposed = false;
+    let off: (() => void) | undefined;
+    const reportOverlayError = (diagnostic: string | null) => {
+      if (!disposed && diagnostic)
+        setError(`Native floating windows unavailable: ${diagnostic}`);
+    };
+    // Subscribe before querying so startup failures cannot slip between them.
+    void (async () => {
+      try {
+        const fn = await listen<string>("orbit:overlay-error", (event) => {
+          reportOverlayError(event.payload);
+        });
+        if (disposed) fn();
+        else off = fn;
+      } catch (error) {
+        reportOverlayError(String(error));
+      }
+      if (disposed) return;
+      try {
+        reportOverlayError(await call<string | null>("overlay_status"));
+      } catch (error) {
+        reportOverlayError(String(error));
+      }
+    })();
+    return () => {
+      disposed = true;
+      off?.();
+    };
+  }, []);
+
   const [configure, setConfigure] = useState<{
     id: string;
     create?: boolean;

@@ -204,3 +204,102 @@ async fn upstream_resolution_removes_a_pending_card_without_a_stale_reply() {
     let text = std::fs::read_to_string(path).unwrap();
     assert!(!text.contains("response"));
 }
+
+#[tokio::test]
+async fn successful_turn_completion_survives_query_until_explicit_dismissal() {
+    let h = Harness::new();
+    let (id, path) = h.start("completion", "permission", 10).await;
+    let request = h.pending(&id).await;
+    h.broker
+        .respond(
+            &request.id,
+            Reply {
+                choice: Some("0".into()),
+                answers: Default::default(),
+            },
+        )
+        .unwrap();
+    h.result(&path).await;
+    let completion = timeout(Duration::from_secs(3), async {
+        loop {
+            if let Some(value) = h.sessions.list_completions().first() {
+                break value.clone();
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .unwrap();
+    assert_eq!(completion.session_id, id);
+    assert_eq!(completion.turn_id, "test-turn");
+    assert_eq!(completion.profile_label, "TEST ONLY completion");
+    assert_eq!(h.sessions.list_completions().len(), 1);
+    assert!(h.sessions.dismiss_completion(&completion.id));
+    assert!(h.sessions.list_completions().is_empty());
+}
+
+#[tokio::test]
+async fn stopping_a_live_session_is_not_a_successful_turn() {
+    let h = Harness::new();
+    let (id, _) = h.start("stopped", "permission", 10).await;
+    h.pending(&id).await;
+    h.sessions.stop(&id).unwrap();
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    assert!(h.sessions.list_completions().is_empty());
+}
+
+#[tokio::test]
+async fn failed_interrupted_malformed_and_other_thread_events_do_not_notify() {
+    let h = Harness::new();
+    for scenario in ["failed", "interrupted", "malformed", "wrong-thread"] {
+        let (id, _) = h
+            .start(scenario, &format!("completion-{scenario}"), 10)
+            .await;
+        timeout(Duration::from_secs(3), async {
+            loop {
+                // turn/completed writes output after attempting notification.
+                if h.sessions.replay(&id).unwrap()["sequence"]
+                    .as_u64()
+                    .unwrap()
+                    > 0
+                {
+                    break;
+                }
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+        })
+        .await
+        .unwrap();
+        assert!(h.sessions.list_completions().is_empty(), "{scenario}");
+    }
+}
+
+#[tokio::test]
+async fn duplicate_protocol_completion_notifies_once_without_ending_session() {
+    let h = Harness::new();
+    let (id, _) = h.start("duplicate", "completion-duplicate", 10).await;
+    timeout(Duration::from_secs(3), async {
+        loop {
+            if h.sessions.replay(&id).unwrap()["sequence"]
+                .as_u64()
+                .unwrap()
+                >= 2
+            {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .unwrap();
+    assert_eq!(h.sessions.list_completions().len(), 1);
+    assert_eq!(
+        h.sessions
+            .list()
+            .iter()
+            .find(|s| s.id == id)
+            .unwrap()
+            .status,
+        "running"
+    );
+}

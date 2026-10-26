@@ -1,3 +1,4 @@
+use crate::orbit_window::{OrbitManager, OrbitWindow, OverlayWindows};
 use crate::window_state::Bounds;
 use crate::{model::*, runtime::Runtime};
 use std::sync::{
@@ -12,6 +13,8 @@ struct NativeState {
     panel: Mutex<Option<PanelTarget>>,
     view: Mutex<Option<(String, bool)>>,
     announced_approvals: Mutex<std::collections::HashSet<String>>,
+    completion_ready: AtomicBool,
+    shown_completion: Mutex<Option<String>>,
     placed_dock_side: Mutex<Option<String>>,
 }
 #[derive(Clone, serde::Serialize)]
@@ -32,6 +35,118 @@ type CommandResult<T> = Result<T, String>;
 fn error(e: impl std::fmt::Display) -> String {
     e.to_string()
 }
+fn require_overlay(window: &tauri::WebviewWindow) -> CommandResult<()> {
+    if !cfg!(target_os = "macos") || !crate::overlay_windows::is_overlay(window.label()) {
+        return Err("Native overlay proxy required".into());
+    }
+    Ok(())
+}
+#[tauri::command]
+fn overlay_status(app: tauri::AppHandle) -> Option<String> {
+    #[cfg(target_os = "macos")]
+    return match app.try_state::<crate::overlay_transport::OverlayTransport>() {
+        Some(transport) => transport.status(),
+        None => Some(
+            "The bundled native overlay helper could not start. The workspace remains available."
+                .into(),
+        ),
+    };
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = app;
+        None
+    }
+}
+
+#[cfg(target_os = "macos")]
+pub(crate) fn overlay_closed(app: &tauri::AppHandle, label: &str) {
+    if let Some(window) = app.get_orbit_window(label) {
+        let _ = window.hide();
+    }
+    if label == "dock-panel" {
+        let _ = dock_panel_pointer(app.clone(), false, Some(true), None);
+    } else if label == "task-completion" {
+        let id = app
+            .state::<NativeState>()
+            .shown_completion
+            .lock()
+            .unwrap()
+            .clone();
+        if let Some(id) = id {
+            app.state::<Arc<Runtime>>().sessions.dismiss_completion(&id);
+        }
+        let _ = sync_completion_popup(app);
+    }
+}
+
+#[tauri::command]
+fn overlay_host(window: tauri::WebviewWindow) -> bool {
+    cfg!(target_os = "macos") && crate::overlay_windows::is_overlay(window.label())
+}
+#[tauri::command]
+fn overlay_host_ready(app: tauri::AppHandle, window: tauri::WebviewWindow) -> CommandResult<()> {
+    require_overlay(&window)?;
+    #[cfg(target_os = "macos")]
+    return app
+        .try_state::<crate::overlay_transport::OverlayTransport>()
+        .ok_or("Native overlay helper unavailable")?
+        .host_ready(window.label());
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = app;
+        Err("macOS only".into())
+    }
+}
+#[tauri::command]
+fn overlay_reply(
+    app: tauri::AppHandle,
+    window: tauri::WebviewWindow,
+    id: u64,
+    ok: bool,
+    value: serde_json::Value,
+) -> CommandResult<()> {
+    require_overlay(&window)?;
+    #[cfg(target_os = "macos")]
+    return app
+        .try_state::<crate::overlay_transport::OverlayTransport>()
+        .ok_or("Native overlay helper unavailable")?
+        .reply(window.label(), id, ok, value);
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = (app, id, ok, value);
+        Err("macOS only".into())
+    }
+}
+#[tauri::command]
+fn overlay_open_url(
+    app: tauri::AppHandle,
+    window: tauri::WebviewWindow,
+    url: String,
+) -> CommandResult<()> {
+    require_overlay(&window)?;
+    if !url.starts_with("https://") && !url.starts_with("http://") {
+        return Err("Only HTTP(S) URLs are supported".into());
+    }
+    use tauri_plugin_opener::OpenerExt;
+    app.opener().open_url(url, None::<&str>).map_err(error)
+}
+#[tauri::command]
+async fn overlay_choose_directory(
+    app: tauri::AppHandle,
+    window: tauri::WebviewWindow,
+) -> CommandResult<Option<String>> {
+    require_overlay(&window)?;
+    use tauri_plugin_dialog::DialogExt;
+    tauri::async_runtime::spawn_blocking(move || {
+        app.dialog()
+            .file()
+            .blocking_pick_folder()
+            .map(|path| path.to_string())
+    })
+    .await
+    .map_err(error)
+}
+
 #[tauri::command]
 async fn get_dashboard(runtime: State<'_, Arc<Runtime>>) -> CommandResult<Dashboard> {
     let runtime = runtime.inner().clone();
@@ -39,6 +154,106 @@ async fn get_dashboard(runtime: State<'_, Arc<Runtime>>) -> CommandResult<Dashbo
         .await
         .map_err(error)?
         .map_err(error)
+}
+
+// Completion notifications have their own window so dock hover dismissal never
+// consumes them. The queue remains in Sessions across webview reloads.
+#[tauri::command]
+fn get_task_completions(app: tauri::AppHandle) -> CommandResult<Vec<TaskCompletion>> {
+    app.state::<NativeState>()
+        .completion_ready
+        .store(true, Ordering::Relaxed);
+    sync_completion_popup(&app)?;
+    Ok(app.state::<Arc<Runtime>>().sessions.list_completions())
+}
+
+#[tauri::command]
+fn dismiss_task_completion(app: tauri::AppHandle, id: String) -> CommandResult<()> {
+    app.state::<Arc<Runtime>>().sessions.dismiss_completion(&id);
+    sync_completion_popup(&app)
+}
+
+fn sync_completion_popup(app: &tauri::AppHandle) -> CommandResult<()> {
+    // Tauri window getters wait for the UI thread. Serialize the entire operation
+    // there, never with a mutex that UI commands might block on from another thread.
+    let handle = app.clone();
+    app.run_on_main_thread(move || {
+        if let Err(error) = sync_completion_popup_on_main(&handle) {
+            eprintln!("Completion popup unavailable: {error}");
+        }
+    })
+    .map_err(error)
+}
+
+fn sync_completion_popup_on_main(app: &tauri::AppHandle) -> CommandResult<()> {
+    let native = app.state::<NativeState>();
+    let runtime = app.state::<Arc<Runtime>>();
+    let completions = runtime.sessions.list_completions();
+    let has_approvals = runtime
+        .broker
+        .list()
+        .iter()
+        .any(|request| request.expires_at > chrono::Utc::now().timestamp());
+    let Some(window) = app.get_orbit_window("task-completion") else {
+        return Ok(());
+    };
+    if !crate::completion_window::completion_visible(
+        native.completion_ready.load(Ordering::Relaxed),
+        !completions.is_empty(),
+        has_approvals,
+    ) {
+        *native.shown_completion.lock().unwrap() = None;
+        return window.hide().map_err(error);
+    }
+    let dock = app.get_orbit_window("main").ok_or("Dock unavailable")?;
+    if let Some(monitor) = dock
+        .current_monitor()
+        .map_err(error)?
+        .or(window.primary_monitor().map_err(error)?)
+    {
+        let scale = monitor.scale_factor();
+        let area = monitor.work_area();
+        let display = Bounds {
+            x: area.position.x as f64 / scale,
+            y: area.position.y as f64 / scale,
+            width: area.size.width as f64 / scale,
+            height: area.size.height as f64 / scale,
+        };
+        let dock_scale = dock.scale_factor().map_err(error)?;
+        let position = dock.inner_position().map_err(error)?;
+        let size = dock.inner_size().map_err(error)?;
+        let settings = runtime.settings.read().unwrap();
+        let bounds = crate::window_state::panel_bounds(
+            display,
+            Bounds {
+                x: position.x as f64 / dock_scale,
+                y: position.y as f64 / dock_scale,
+                width: size.width as f64 / dock_scale,
+                height: size.height as f64 / dock_scale,
+            },
+            360.0,
+            210.0,
+            &settings.dock_side,
+            settings.dock_gap,
+            105.0,
+        );
+        window
+            .set_size(LogicalSize::new(bounds.width, bounds.height))
+            .map_err(error)?;
+        window
+            .set_position(LogicalPosition::new(bounds.x, bounds.y))
+            .map_err(error)?;
+    }
+    *native.shown_completion.lock().unwrap() = completions.first().map(|item| item.id.clone());
+    if !window.is_visible().map_err(error)? {
+        // Keep editor focus on automatic arrival; explicit button clicks may focus.
+        window.set_focusable(false).map_err(error)?;
+        let shown = window.show().map_err(error);
+        let restored = window.set_focusable(true).map_err(error);
+        shown?;
+        restored?;
+    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -115,7 +330,7 @@ fn save_settings(
     if settings.window_mode == "island" && !cfg!(target_os = "macos") {
         return Err("Dynamic Island mode is available on macOS".into());
     }
-    if let Some(window) = app.get_webview_window("main") {
+    if let Some(window) = app.get_orbit_window("main") {
         window
             .set_always_on_top(settings.always_on_top)
             .map_err(error)?;
@@ -141,7 +356,7 @@ fn save_settings(
         }
     } else {
         *app.state::<NativeState>().panel.lock().unwrap() = None;
-        if let Some(panel) = app.get_webview_window("dock-panel") {
+        if let Some(panel) = app.get_orbit_window("dock-panel") {
             let _ = panel.hide();
         }
     }
@@ -247,7 +462,7 @@ fn save_geometry(app: &tauri::AppHandle, runtime: &Runtime) {
         } else {
             view
         };
-        if let Some(window) = app.get_webview_window("main") {
+        if let Some(window) = app.get_orbit_window("main") {
             if let (Ok(position), Ok(size), Ok(scale)) = (
                 window.inner_position(),
                 window.inner_size(),
@@ -271,7 +486,7 @@ fn layout(app: &tauri::AppHandle, runtime: &Runtime, view: &str) -> CommandResul
         return Err("Unknown window view".into());
     }
     let window = app
-        .get_webview_window(if view == "workspace" {
+        .get_orbit_window(if view == "workspace" {
             "workspace"
         } else {
             "main"
@@ -437,6 +652,7 @@ fn set_window_view(
     view: String,
     window: tauri::WebviewWindow,
 ) -> CommandResult<()> {
+    let window = OrbitWindow::new(window);
     if window.label() != "main" || view == "workspace" {
         return Err("Use the independent workspace window".into());
     }
@@ -448,6 +664,7 @@ fn hide_window(
     runtime: State<'_, Arc<Runtime>>,
     window: tauri::WebviewWindow,
 ) -> CommandResult<()> {
+    let window = OrbitWindow::new(window);
     if window.label() == "workspace" {
         return window.hide().map_err(error);
     }
@@ -459,7 +676,7 @@ fn hide_window(
         return Err("System tray is unavailable; keep this window open".into());
     }
     save_geometry(&app, &runtime);
-    if let Some(w) = app.get_webview_window("main") {
+    if let Some(w) = app.get_orbit_window("main") {
         w.hide().map_err(error)?;
     }
     Ok(())
@@ -474,7 +691,7 @@ fn open_workspace(
 ) -> CommandResult<()> {
     layout(&app, &runtime, "workspace")?;
     let window = app
-        .get_webview_window("workspace")
+        .get_orbit_window("workspace")
         .ok_or("Workspace unavailable")?;
     window
         .emit(
@@ -490,6 +707,7 @@ fn drag_dock(
     runtime: State<'_, Arc<Runtime>>,
     window: tauri::WebviewWindow,
 ) -> CommandResult<()> {
+    let window = OrbitWindow::new(window);
     if window.label() != "main" || runtime.settings.read().unwrap().dock_locked {
         return Err("Dock position is locked".into());
     }
@@ -504,7 +722,7 @@ fn drag_dock(
     app.state::<NativeState>()
         .dragging
         .store(true, Ordering::Relaxed);
-    if let Some(panel) = app.get_webview_window("dock-panel") {
+    if let Some(panel) = app.get_orbit_window("dock-panel") {
         let _ = panel.hide();
     }
     Ok(())
@@ -516,6 +734,7 @@ fn move_dock(
     dx: f64,
     dy: f64,
 ) -> CommandResult<()> {
+    let window = OrbitWindow::new(window);
     if window.label() != "main" || !dx.is_finite() || !dy.is_finite() {
         return Err("Invalid dock movement".into());
     }
@@ -529,6 +748,7 @@ fn move_dock(
 }
 #[tauri::command]
 fn finish_dock_drag(app: tauri::AppHandle, window: tauri::WebviewWindow) -> CommandResult<()> {
+    let window = OrbitWindow::new(window);
     if window.label() != "main" {
         return Err("Dock window required".into());
     }
@@ -548,7 +768,7 @@ fn reset_dock_position(
     runtime: State<'_, Arc<Runtime>>,
 ) -> CommandResult<()> {
     let side = runtime.settings.read().unwrap().dock_side.clone();
-    let Some(window) = app.get_webview_window("main") else {
+    let Some(window) = app.get_orbit_window("main") else {
         return Err("Dock unavailable".into());
     };
     if let Some(m) = window.current_monitor().map_err(error)? {
@@ -578,9 +798,9 @@ fn reset_dock_position(
 fn position_dock_panel(app: &tauri::AppHandle, target: &PanelTarget) -> CommandResult<()> {
     let runtime = app.state::<Arc<Runtime>>();
     let s = runtime.settings.read().unwrap().clone();
-    let dock = app.get_webview_window("main").ok_or("Dock unavailable")?;
+    let dock = app.get_orbit_window("main").ok_or("Dock unavailable")?;
     let panel = app
-        .get_webview_window("dock-panel")
+        .get_orbit_window("dock-panel")
         .ok_or("Detail window unavailable")?;
     let Some(m) = dock.current_monitor().map_err(error)? else {
         return Ok(());
@@ -628,12 +848,13 @@ fn set_dock_panel(
     focus: Option<bool>,
     window: tauri::WebviewWindow,
 ) -> CommandResult<()> {
+    let window = OrbitWindow::new(window);
     if window.label() != "main" || !anchor.is_finite() {
         return Err("Invalid detail target".into());
     }
     show_dock_panel(&app, &runtime, profile_id, anchor, pinned)?;
     if focus.unwrap_or(false) {
-        if let Some(panel) = app.get_webview_window("dock-panel") {
+        if let Some(panel) = app.get_orbit_window("dock-panel") {
             panel.set_focus().map_err(error)?;
         }
     }
@@ -648,7 +869,7 @@ fn show_dock_panel(
     pinned: bool,
 ) -> CommandResult<()> {
     let panel = app
-        .get_webview_window("dock-panel")
+        .get_orbit_window("dock-panel")
         .ok_or("Detail window unavailable")?;
     let profile_id = if runtime.settings.read().unwrap().window_mode == "floating" {
         profile_id
@@ -765,7 +986,7 @@ fn announce_approvals(app: &tauri::AppHandle) -> CommandResult<()> {
         .lock()
         .unwrap()
         .extend(pending.iter().map(|r| r.id.clone()));
-    if let Some(main) = app.get_webview_window("main") {
+    if let Some(main) = app.get_orbit_window("main") {
         main.emit(
             "orbit:panel-presence",
             serde_json::json!({"inside":false,"profileId":session.profile_id}),
@@ -786,6 +1007,7 @@ fn resize_dock_panel(
     profile_id: String,
     window: tauri::WebviewWindow,
 ) -> CommandResult<()> {
+    let window = OrbitWindow::new(window);
     if window.label() != "dock-panel" || !height.is_finite() || height <= 0.0 {
         return Err("Invalid detail size".into());
     }
@@ -814,11 +1036,11 @@ fn dock_panel_pointer(
 ) -> CommandResult<()> {
     if dismiss.unwrap_or(false) {
         *app.state::<NativeState>().panel.lock().unwrap() = None;
-        if let Some(panel) = app.get_webview_window("dock-panel") {
+        if let Some(panel) = app.get_orbit_window("dock-panel") {
             let _ = panel.hide();
         }
     }
-    if let Some(main) = app.get_webview_window("main") {
+    if let Some(main) = app.get_orbit_window("main") {
         main.emit("orbit:panel-presence",serde_json::json!({"inside":inside,"dismiss":dismiss.unwrap_or(false),"togglePin":toggle_pin.unwrap_or(false)})).map_err(error)?;
     }
     Ok(())
@@ -826,13 +1048,13 @@ fn dock_panel_pointer(
 fn show_workspace(app: &tauri::AppHandle) {
     let runtime = app.state::<Arc<Runtime>>();
     let _ = layout(app, &runtime, "workspace");
-    if let Some(window) = app.get_webview_window("workspace") {
+    if let Some(window) = app.get_orbit_window("workspace") {
         let _ = window.unminimize();
         let _ = window.set_focus();
     }
 }
 fn snap_dock(app: &tauri::AppHandle) {
-    let Some(window) = app.get_webview_window("main") else {
+    let Some(window) = app.get_orbit_window("main") else {
         return;
     };
     let runtime = app.state::<Arc<Runtime>>();
@@ -891,7 +1113,7 @@ fn quit_app(app: tauri::AppHandle, runtime: State<'_, Arc<Runtime>>) {
     app.exit(0);
 }
 
-fn window_cursor(window: &tauri::WebviewWindow, cursor: (f64, f64)) -> Option<(f64, f64)> {
+fn window_cursor(window: &OrbitWindow, cursor: (f64, f64)) -> Option<(f64, f64)> {
     if !window.is_visible().ok()? {
         return None;
     }
@@ -914,7 +1136,7 @@ fn sample_dock_pointer(app: &tauri::AppHandle) {
     if state.dragging.load(Ordering::Relaxed) {
         return;
     }
-    let Some(main) = app.get_webview_window("main") else {
+    let Some(main) = app.get_orbit_window("main") else {
         return;
     };
     if !main.is_visible().unwrap_or(false) {
@@ -926,7 +1148,7 @@ fn sample_dock_pointer(app: &tauri::AppHandle) {
     let cursor = (cursor.x, cursor.y);
     let local = window_cursor(&main, cursor);
     let panel_inside = app
-        .get_webview_window("dock-panel")
+        .get_orbit_window("dock-panel")
         .and_then(|panel| window_cursor(&panel, cursor))
         .is_some();
     let _ = main.emit(
@@ -957,11 +1179,20 @@ pub fn run() {
     let app = tauri::Builder::default()
         .manage(runtime)
         .manage(NativeState::default())
+        .manage(OverlayWindows::default())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_autostart::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
+            overlay_status,
+            overlay_host,
+            overlay_host_ready,
+            overlay_reply,
+            overlay_open_url,
+            overlay_choose_directory,
             get_dashboard,
+            get_task_completions,
+            dismiss_task_completion,
             prepare_codex_hook,
             disable_codex_hooks,
             get_usage,
@@ -990,6 +1221,22 @@ pub fn run() {
         ])
         .on_window_event(|window, event| {
             let app = window.app_handle();
+            if window.label() == "task-completion" {
+                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                    api.prevent_close();
+                    let id = app
+                        .state::<NativeState>()
+                        .shown_completion
+                        .lock()
+                        .unwrap()
+                        .clone();
+                    if let Some(id) = id {
+                        app.state::<Arc<Runtime>>().sessions.dismiss_completion(&id);
+                    }
+                    let _ = sync_completion_popup(app);
+                }
+                return;
+            }
             if window.label() == "workspace" {
                 if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                     api.prevent_close();
@@ -1028,6 +1275,23 @@ pub fn run() {
         .setup(move |app| {
             startup_trace("native setup callback");
             let handle = app.handle().clone();
+            #[cfg(target_os = "macos")]
+            {
+                use tauri::Listener;
+                match crate::overlay_transport::start(&handle) {
+                    Ok(transport) => { app.manage(transport); }
+                    Err(error) => eprintln!("Native overlay helper unavailable: {error}"),
+                }
+                let helper_handle = handle.clone();
+                handle.listen("orbit:event", move |event| {
+                    if let Some(transport) = helper_handle.try_state::<crate::overlay_transport::OverlayTransport>() {
+                        if let Ok(payload) = serde_json::from_str::<serde_json::Value>(event.payload()) {
+                            let _ = transport.send(serde_json::json!({"type":"event","event":"orbit:event","payload":payload}));
+                        }
+                    }
+                });
+            }
+
             let events_handle = handle.clone();
             let mut events = rt.events.subscribe();
             tauri::async_runtime::spawn(async move {
@@ -1035,13 +1299,27 @@ pub fn run() {
                     match events.recv().await {
                         Ok(event) => {
                             if event.kind == "dashboard" {
+                                if let Err(error) = sync_completion_popup(&events_handle) {
+                                    eprintln!("Completion popup unavailable: {error}");
+                                }
                                 if let Err(error) = announce_approvals(&events_handle) {
                                     eprintln!("Approval popup unavailable: {error}");
                                 }
                             }
                             let _ = events_handle.emit("orbit:event", event);
                         }
-                        Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
+                        Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {
+                            let _ = sync_completion_popup(&events_handle);
+                            let _ = announce_approvals(&events_handle);
+                            let _ = events_handle.emit(
+                                "orbit:event",
+                                AppEvent {
+                                    kind: "dashboard".into(),
+                                    session_id: None,
+                                    data: serde_json::Value::Null,
+                                },
+                            );
+                        }
                         Err(_) => break,
                     }
                 }
@@ -1103,7 +1381,10 @@ pub fn run() {
                 .tray_available
                 .store(tray.build(app).is_ok(), Ordering::Relaxed);
             startup_trace("creating initial window layout");
-            layout(&handle, &rt, "widget").map_err(anyhow::Error::msg)?;
+            if let Err(error) = layout(&handle, &rt, "widget") {
+                eprintln!("Floating windows unavailable: {error}");
+                show_workspace(&handle);
+            }
             Ok(())
         })
         .build(tauri::generate_context!())
@@ -1113,6 +1394,12 @@ pub fn run() {
         #[cfg(target_os = "macos")]
         if let tauri::RunEvent::Reopen { .. } = event {
             show_workspace(app);
+        }
+        if let tauri::RunEvent::Exit = event {
+            #[cfg(target_os = "macos")]
+            if let Some(transport) = app.try_state::<crate::overlay_transport::OverlayTransport>() {
+                transport.stop();
+            }
         }
         if let tauri::RunEvent::ExitRequested { .. } = event {
             save_geometry(app, &app.state::<Arc<Runtime>>());

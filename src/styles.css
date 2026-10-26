@@ -2554,3 +2554,91 @@ input[type="radio"] {
   background: var(--bg);
   font-size: 12px;
 }
+
+/* Independent completion window: never coupled to dock hover dismissal. */
+.completion-frame {
+  padding: 8px;
+  background: transparent;
+  overflow: auto;
+}
+.completion-card {
+  background: var(--surface);
+  border: 1px solid var(--strong-line);
+  border-radius: 16px;
+  padding: 14px 16px;
+  min-height: 184px;
+  box-shadow: 0 4px 14px var(--shadow);
+}
+.completion-card header,
+.completion-card footer {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.completion-card header {
+  color: var(--accent);
+  margin-bottom: 12px;
+}
+.completion-card h2 {
+  flex: 1;
+  font-size: 15px;
+  letter-spacing: -0.02em;
+}
+.completion-close {
+  padding: 4px;
+  display: flex;
+  border-radius: 6px;
+  color: var(--muted);
+}
+.completion-close:hover {
+  background: var(--surface2);
+  color: var(--ink);
+}
+.completion-account,
+.completion-project,
+.completion-session {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.completion-account {
+  font-size: 13px;
+}
+.completion-project {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.completion-session {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.completion-card footer {
+  justify-content: space-between;
+  margin-top: 12px;
+}
+.completion-card footer > span {
+  color: var(--muted);
+  font-size: 11px;
+}
+.completion-open {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  border-radius: 8px;
+  padding: 7px 10px;
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.completion-error {
+  color: var(--warning);
+  overflow-wrap: anywhere;
+  font-size: 11px;
+  margin-top: 7px;
+}
+.completion-empty {
+  color: var(--muted);
+  padding: 18px;
+}
