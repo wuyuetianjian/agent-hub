@@ -180,3 +180,13 @@ export interface UsageReport {
   scannedAt: number;
   partial: boolean;
 }
+
+export interface TaskCompletion {
+  id: string;
+  sessionId: string;
+  turnId: string;
+  profileId: string;
+  profileLabel: string;
+  cwd: string;
+  completedAt: number;
+}

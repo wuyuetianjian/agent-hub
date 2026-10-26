@@ -12,6 +12,16 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
     send({ id: message.id, result: { thread: { id: "test-thread" } } });
   } else if (message.method === "turn/start") {
     send({ id: message.id, result: { turn: { id: "test-turn" } } });
+    if (scenario.startsWith("completion-")) {
+      const status = scenario.slice("completion-".length);
+      const params = status === "malformed" ? {} : {
+        threadId: status === "wrong-thread" ? "another-thread" : "test-thread",
+        turn: { id: "test-turn", status: status === "duplicate" || status === "wrong-thread" ? "completed" : status, error: null },
+      };
+      send({ method: "turn/completed", params });
+      if (status === "duplicate") send({ method: "turn/completed", params });
+      return;
+    }
     const method =
       scenario === "question"
         ? "item/tool/requestUserInput"
@@ -43,6 +53,6 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
       }, 100);
   } else if (!message.method && message.id === 42) {
     write({ response: message.result });
-    send({ method: "turn/completed", params: {} });
+    send({ method: "turn/completed", params: { threadId: "test-thread", turn: { id: "test-turn", status: "completed", error: null } } });
   }
 });

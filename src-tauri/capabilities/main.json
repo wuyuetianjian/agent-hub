@@ -4,7 +4,8 @@
   "windows": [
     "main",
     "workspace",
-    "dock-panel"
+    "dock-panel",
+    "task-completion"
   ],
   "permissions": [
     "core:default",

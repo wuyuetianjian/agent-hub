@@ -1,3 +1,4 @@
+pub mod completion_window;
 pub mod model;
 pub mod quota;
 pub use quota::remaining_percent;
@@ -19,3 +20,5 @@ pub mod store;
 pub mod window_state;
 
 pub mod usage;
+
+pub mod completions;

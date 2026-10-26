@@ -11,6 +11,7 @@ Windows CLI 启动测试按路径语义比较 Node 入口，兼容正反斜杠�
 跨平台桌面 Agent 额度与 Token 用量悬浮工具，使用 Tauri 2、React、Rust 和 SQLite。提供普通悬浮窗、macOS 可选灵动岛样式、账号详情、交互终端和确认中心。
 
 - 14 个 Agent 入口及离线图标；点击图标查看账号和全部额度周期。
+- 托管 Codex 任务完成通知：Orbit 内以结构化模式启动的 Codex 成功完成一轮任务后显示独立浮框，可关闭或查看原会话；待审批优先，不抢占键盘焦点。失败、中断、手动结束、普通终端及外部客户端不触发成功通知。未读通知按到达顺序显示（最多保留最近 100 条），页面重载不丢失；退出应用后清空。
 - 侧边设置：在设置中切换左侧/右侧；`dockSize`、`dockHoverSize`、`dockGap`、`dockPadding`、`dockPanelWidth`、`dockEdgeInset`、`dockHoverDelayMs`、`dockChromeHeight`、`dockPopupHeight` 可通过设置配置覆盖。
 - Codex 全窗口审批：在任一已有会话详情选择“接入所有 Codex 窗口”，执行生成的用户级 Hook 安装命令，并在原客户端审查信任。统一入口覆盖同一 Codex 配置目录下不同项目的已有及新开窗口，按原会话分别显示 reason、命令动作和“允许一次／拒绝”，并发请求互不影响；原对话不迁移。
 - 每个独立 `CODEX_HOME` 需要安装一次；多账号须配置不同目录，归属不明确时保留原客户端审批。只支持会加载受信任本地 `PermissionRequest` Hook 的客户端，不能保证不支持该事件的窗口接入。安装状态与每个会话收到回调的状态分别显示，不能以安装或模拟测试代替真实验证。
@@ -73,6 +74,7 @@ This release labels the current development snapshot v0.0.1 and provides a macOS
 A desktop agent quota companion built with Tauri 2, React, Rust and SQLite. It includes a floating widget, an optional macOS Dynamic Island-style layout, account details, interactive terminals and an approval inbox.
 
 - Fourteen agent entries with offline icons; click an icon for account details and all quota windows.
+- Managed Codex task completion notices: successful structured turns started inside Orbit open an independent, non-activating notification with Dismiss and View session actions. Pending approvals take priority. Failed/interrupted/stopped turns, terminal sessions and external clients do not announce success. The in-memory FIFO keeps the latest 100 unread notices across webview reloads, but not app restarts.
 - Dock configuration: choose left/right in Settings; override `dockSize`, `dockHoverSize`, `dockGap`, `dockPadding`, `dockPanelWidth`, `dockEdgeInset`, `dockHoverDelayMs`, `dockChromeHeight` and `dockPopupHeight` through settings configuration.
 - All-window Codex approvals: choose “Connect all Codex windows” from any existing session, run the generated user-level hook installer, then review/trust it in the original client. One dispatcher covers existing and new windows across projects sharing that Codex home. Each request displays its original session/project, reason, action and one-time allow/deny choices; concurrent requests stay isolated and conversations remain in their original clients.
 - Install once per distinct `CODEX_HOME`. Separate account profiles need distinct homes; ambiguous ownership falls back to the original approval UI. Clients must support and load trusted local `PermissionRequest` hooks; unsupported clients cannot be connected by this hook. Installation coverage is shown separately from each session's actual callback status. Neither installation nor synthetic tests prove real client integration.

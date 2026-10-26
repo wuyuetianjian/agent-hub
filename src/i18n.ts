@@ -1,4 +1,9 @@
 const zh = {
+  taskCompleted: "任务已完成",
+  viewCompletedSession: "查看会话",
+  dismissCompletion: "关闭通知",
+  completionQueue: "条完成通知",
+  noCompletions: "暂无完成通知",
   overview: "总览",
   agents: "Agent",
   sessions: "会话",
@@ -201,6 +206,11 @@ const zh = {
 };
 type Key = keyof typeof zh;
 const en: Record<Key, string> = {
+  taskCompleted: "Task completed",
+  viewCompletedSession: "View session",
+  dismissCompletion: "Dismiss notification",
+  completionQueue: "completed tasks",
+  noCompletions: "No completed tasks",
   overview: "Overview",
   agents: "Agents",
   sessions: "Sessions",

@@ -63,6 +63,24 @@
         "skipTaskbar": true,
         "focusable": true,
         "url": "index.html?panel=1"
+      },
+      {
+        "label": "task-completion",
+        "title": "Agent Orbit",
+        "width": 360,
+        "height": 210,
+        "minWidth": 1,
+        "minHeight": 1,
+        "decorations": false,
+        "transparent": true,
+        "resizable": false,
+        "alwaysOnTop": true,
+        "visible": false,
+        "focus": false,
+        "shadow": false,
+        "skipTaskbar": true,
+        "focusable": true,
+        "url": "index.html?completion=1"
       }
     ],
     "security": {

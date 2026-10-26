@@ -12,6 +12,8 @@ struct NativeState {
     panel: Mutex<Option<PanelTarget>>,
     view: Mutex<Option<(String, bool)>>,
     announced_approvals: Mutex<std::collections::HashSet<String>>,
+    completion_ready: AtomicBool,
+    shown_completion: Mutex<Option<String>>,
     placed_dock_side: Mutex<Option<String>>,
 }
 #[derive(Clone, serde::Serialize)]
@@ -39,6 +41,106 @@ async fn get_dashboard(runtime: State<'_, Arc<Runtime>>) -> CommandResult<Dashbo
         .await
         .map_err(error)?
         .map_err(error)
+}
+
+// Completion notifications have their own window so dock hover dismissal never
+// consumes them. The queue remains in Sessions across webview reloads.
+#[tauri::command]
+fn get_task_completions(app: tauri::AppHandle) -> CommandResult<Vec<TaskCompletion>> {
+    app.state::<NativeState>()
+        .completion_ready
+        .store(true, Ordering::Relaxed);
+    sync_completion_popup(&app)?;
+    Ok(app.state::<Arc<Runtime>>().sessions.list_completions())
+}
+
+#[tauri::command]
+fn dismiss_task_completion(app: tauri::AppHandle, id: String) -> CommandResult<()> {
+    app.state::<Arc<Runtime>>().sessions.dismiss_completion(&id);
+    sync_completion_popup(&app)
+}
+
+fn sync_completion_popup(app: &tauri::AppHandle) -> CommandResult<()> {
+    // Tauri window getters wait for the UI thread. Serialize the entire operation
+    // there, never with a mutex that UI commands might block on from another thread.
+    let handle = app.clone();
+    app.run_on_main_thread(move || {
+        if let Err(error) = sync_completion_popup_on_main(&handle) {
+            eprintln!("Completion popup unavailable: {error}");
+        }
+    })
+    .map_err(error)
+}
+
+fn sync_completion_popup_on_main(app: &tauri::AppHandle) -> CommandResult<()> {
+    let native = app.state::<NativeState>();
+    let runtime = app.state::<Arc<Runtime>>();
+    let completions = runtime.sessions.list_completions();
+    let has_approvals = runtime
+        .broker
+        .list()
+        .iter()
+        .any(|request| request.expires_at > chrono::Utc::now().timestamp());
+    let Some(window) = app.get_webview_window("task-completion") else {
+        return Ok(());
+    };
+    if !crate::completion_window::completion_visible(
+        native.completion_ready.load(Ordering::Relaxed),
+        !completions.is_empty(),
+        has_approvals,
+    ) {
+        *native.shown_completion.lock().unwrap() = None;
+        return window.hide().map_err(error);
+    }
+    let dock = app.get_webview_window("main").ok_or("Dock unavailable")?;
+    if let Some(monitor) = dock
+        .current_monitor()
+        .map_err(error)?
+        .or(window.primary_monitor().map_err(error)?)
+    {
+        let scale = monitor.scale_factor();
+        let area = monitor.work_area();
+        let display = Bounds {
+            x: area.position.x as f64 / scale,
+            y: area.position.y as f64 / scale,
+            width: area.size.width as f64 / scale,
+            height: area.size.height as f64 / scale,
+        };
+        let dock_scale = dock.scale_factor().map_err(error)?;
+        let position = dock.inner_position().map_err(error)?;
+        let size = dock.inner_size().map_err(error)?;
+        let settings = runtime.settings.read().unwrap();
+        let bounds = crate::window_state::panel_bounds(
+            display,
+            Bounds {
+                x: position.x as f64 / dock_scale,
+                y: position.y as f64 / dock_scale,
+                width: size.width as f64 / dock_scale,
+                height: size.height as f64 / dock_scale,
+            },
+            360.0,
+            210.0,
+            &settings.dock_side,
+            settings.dock_gap,
+            105.0,
+        );
+        window
+            .set_size(LogicalSize::new(bounds.width, bounds.height))
+            .map_err(error)?;
+        window
+            .set_position(LogicalPosition::new(bounds.x, bounds.y))
+            .map_err(error)?;
+    }
+    *native.shown_completion.lock().unwrap() = completions.first().map(|item| item.id.clone());
+    if !window.is_visible().map_err(error)? {
+        // Keep editor focus on automatic arrival; explicit button clicks may focus.
+        window.set_focusable(false).map_err(error)?;
+        let shown = window.show().map_err(error);
+        let restored = window.set_focusable(true).map_err(error);
+        shown?;
+        restored?;
+    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -962,6 +1064,8 @@ pub fn run() {
         .plugin(tauri_plugin_autostart::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             get_dashboard,
+            get_task_completions,
+            dismiss_task_completion,
             prepare_codex_hook,
             disable_codex_hooks,
             get_usage,
@@ -990,6 +1094,22 @@ pub fn run() {
         ])
         .on_window_event(|window, event| {
             let app = window.app_handle();
+            if window.label() == "task-completion" {
+                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                    api.prevent_close();
+                    let id = app
+                        .state::<NativeState>()
+                        .shown_completion
+                        .lock()
+                        .unwrap()
+                        .clone();
+                    if let Some(id) = id {
+                        app.state::<Arc<Runtime>>().sessions.dismiss_completion(&id);
+                    }
+                    let _ = sync_completion_popup(app);
+                }
+                return;
+            }
             if window.label() == "workspace" {
                 if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                     api.prevent_close();
@@ -1035,13 +1155,27 @@ pub fn run() {
                     match events.recv().await {
                         Ok(event) => {
                             if event.kind == "dashboard" {
+                                if let Err(error) = sync_completion_popup(&events_handle) {
+                                    eprintln!("Completion popup unavailable: {error}");
+                                }
                                 if let Err(error) = announce_approvals(&events_handle) {
                                     eprintln!("Approval popup unavailable: {error}");
                                 }
                             }
                             let _ = events_handle.emit("orbit:event", event);
                         }
-                        Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
+                        Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {
+                            let _ = sync_completion_popup(&events_handle);
+                            let _ = announce_approvals(&events_handle);
+                            let _ = events_handle.emit(
+                                "orbit:event",
+                                AppEvent {
+                                    kind: "dashboard".into(),
+                                    session_id: None,
+                                    data: serde_json::Value::Null,
+                                },
+                            );
+                        }
                         Err(_) => break,
                     }
                 }

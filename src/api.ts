@@ -44,6 +44,7 @@ export async function call<T>(
   args: Record<string, unknown> = {},
 ): Promise<T> {
   if (isDesktop) return invoke<T>(command, args);
+  if (command === "get_task_completions") return [] as T;
   if (command === "get_dashboard") return structuredClone(preview) as T;
   if (command === "save_settings") {
     preview = { ...preview, settings: args.settings as Settings };

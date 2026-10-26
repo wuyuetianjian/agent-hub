@@ -1,4 +1,4 @@
-use crate::{broker::Broker, model::*, protocol::RpcClient};
+use crate::{broker::Broker, completions::CompletionQueue, model::*, protocol::RpcClient};
 use anyhow::{anyhow, ensure, Result};
 use base64::{engine::general_purpose::STANDARD, Engine};
 use portable_pty::{native_pty_system, ChildKiller, CommandBuilder, MasterPty, PtySize};
@@ -30,6 +30,7 @@ struct Entry {
     max_output: usize,
 }
 pub struct Sessions {
+    completions: Mutex<CompletionQueue>,
     entries: Mutex<HashMap<String, Arc<Entry>>>,
     events: broadcast::Sender<AppEvent>,
     broker: Arc<Broker>,
@@ -37,6 +38,7 @@ pub struct Sessions {
 impl Sessions {
     pub fn new(events: broadcast::Sender<AppEvent>, broker: Arc<Broker>) -> Self {
         Self {
+            completions: Mutex::new(CompletionQueue::default()),
             entries: Mutex::new(HashMap::new()),
             events,
             broker,
@@ -60,6 +62,30 @@ impl Sessions {
             .collect();
         v.sort_by_key(|e| e.started_at);
         v
+    }
+    pub fn list_completions(&self) -> Vec<TaskCompletion> {
+        self.completions.lock().unwrap().list()
+    }
+    pub fn dismiss_completion(&self, id: &str) -> bool {
+        let removed = self.completions.lock().unwrap().dismiss(id);
+        if removed {
+            self.changed();
+        }
+        removed
+    }
+    fn record_completion(&self, e: &Entry, params: &Value) {
+        // Hold the status lock through insertion so a manual stop and completion
+        // have a single ordering: stopped sessions never produce later success.
+        let info = e.info.lock().unwrap();
+        let recorded = self
+            .completions
+            .lock()
+            .unwrap()
+            .record(&info, &e.profile.label, params);
+        drop(info);
+        if recorded {
+            self.changed();
+        }
     }
     fn changed(&self) {
         let _ = self.events.send(AppEvent {
@@ -357,7 +383,7 @@ impl Sessions {
             .to_owned();
         *e.transport.lock().unwrap() = Some(Transport::Rpc {
             client: rpc.clone(),
-            thread_id,
+            thread_id: thread_id.clone(),
         });
         guard.disarm();
         let manager = self.clone();
@@ -382,6 +408,9 @@ impl Sessions {
                 } else if let Some(delta) = params["delta"].as_str() {
                     manager.output(&e, delta.as_bytes());
                 } else if method == "turn/completed" {
+                    if params["threadId"].as_str() == Some(thread_id.as_str()) {
+                        manager.record_completion(&e, params);
+                    }
                     manager.output(&e, b"\r\n");
                     manager.changed();
                 } else if method == "serverRequest/resolved" {
@@ -582,6 +611,7 @@ impl Sessions {
     }
     pub fn stop(&self, id: &str) -> Result<()> {
         let e = self.entry(id)?;
+        e.info.lock().unwrap().status = "exited".into();
         self.broker.cancel_session(id);
         let transport = e.transport.lock().unwrap();
         match transport.as_ref() {
