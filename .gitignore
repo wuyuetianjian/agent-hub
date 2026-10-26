@@ -34,3 +34,6 @@ artifacts/
 
 # Local documentation
 /docs/
+
+# Generated macOS overlay sidecar (compiled before tauri-build)
+src-tauri/binaries/agent-orbit-overlay-*

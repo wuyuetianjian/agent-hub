@@ -22,3 +22,10 @@ pub mod window_state;
 pub mod usage;
 
 pub mod completions;
+
+#[cfg(feature = "desktop")]
+pub mod orbit_window;
+pub mod overlay_protocol;
+#[cfg(all(feature = "desktop", target_os = "macos"))]
+pub mod overlay_transport;
+pub mod overlay_windows;
